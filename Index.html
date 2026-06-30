@@ -1192,6 +1192,7 @@ const state = {
   logoFlower: '',
   editMode: false,
   editingRegId: '',
+  donationOpen: true,
 };
 
 function emptyData() {
@@ -2565,7 +2566,7 @@ const steps = {
 
   closed: () => ({
     progress: 0,
-    html: `
+    html: state.donationOpen ? `
       <div class="card closed-card">
         <div class="closed-badge">🌺 CMMBA 34 · Aloha Party</div>
         <div class="closed-sun">🌅</div>
@@ -2584,6 +2585,18 @@ const steps = {
           </button>
           <p class="closed-hint">ทุกยอดบริจาคจะขึ้นบนกระดาน Live 🎉<br>ขอบคุณที่เป็นส่วนหนึ่งของ Aloha Party 🌴</p>
         </div>
+      </div>
+    ` : `
+      <div class="card closed-card">
+        <div class="closed-badge">🌺 CMMBA 34 · Aloha Party</div>
+        <div class="closed-sun">🌴</div>
+        <h2 class="closed-title">จบงานแล้ว ขอบคุณครับ 🙏</h2>
+        <p style="color: var(--ink-soft); line-height: 1.75; font-size: 15px;">
+          Aloha Party CMMBA 34 จบลงอย่างสวยงาม<br>
+          เมื่อวันที่ <strong>1–2 สิงหาคม 2569</strong> ณ Oakwood ศรีราชา<br>
+          ขอบคุณทุกท่านที่ร่วมเป็นส่วนหนึ่งของงาน 🌺
+        </p>
+        <p class="closed-hint" style="margin-top:22px;">ปิดรับลงทะเบียนและบริจาคแล้ว · แล้วพบกันใหม่ 🌴</p>
       </div>
     `,
   }),
@@ -3884,6 +3897,7 @@ window.addEventListener('DOMContentLoaded', () => {
     state.qrImage = qrImage || '';
 
     const isClosed = cfg && !cfg.isOpen;
+    state.donationOpen = cfg ? (cfg.donationOpen !== false) : true;
     assets = assets || {};
 
     // ===== Phase 2: preload images (best effort — ไม่ block ถ้าโหลดไม่ได้) =====

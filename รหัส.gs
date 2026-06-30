@@ -12,7 +12,8 @@ const CONFIG = {
   SHEET_ID:   '1grJlq5HKqH8C6lo806igLHy5hpod4U4PXzGHQMkswUg',
   FOLDER_ID:  '1_Y5b1hdfNahaetMZCvdsbE-bcxSmDUcu',  // assets: bg, logos, QR
   SLIP_FOLDER_ID: '1MoY2U_UtU_4HpZz7HRVirytJtHgv4_IK',  // สลิปการโอนเงิน
-  DEADLINE:   '2026-07-01T00:00:00+07:00',  // ปิดรับเที่ยงคืน — เปิดถึงสิ้นวัน 30 มิ.ย. 2569
+  DEADLINE:   '2026-07-01T00:00:00+07:00',  // ปิดรับลงทะเบียนเที่ยงคืน — เปิดถึงสิ้นวัน 30 มิ.ย. 2569
+  DONATION_DEADLINE: '2026-08-03T00:00:00+07:00',  // ปิดรับบริจาคหลังงานจบ — เที่ยงคืนวันที่ 2 ส.ค. 2569
   EVENT_NAME: 'CMMBA 34 Aloha Party',
   TZ:         'Asia/Bangkok',
   QR_CACHE_TTL: 21600,
@@ -202,7 +203,17 @@ function getConfig() {
     deadline: CONFIG.DEADLINE,
     isOpen: now <= new Date(CONFIG.DEADLINE),
     deadlineLabel: '30 มิถุนายน 2569',
+    donationDeadline: CONFIG.DONATION_DEADLINE,
+    donationOpen: now <= new Date(CONFIG.DONATION_DEADLINE),
+    donationDeadlineLabel: '2 สิงหาคม 2569',
   };
+}
+
+/**
+ * เช็คว่ายังเปิดรับบริจาคอยู่ไหม (หลังงานจบ = ปิด)
+ */
+function isDonationOpen() {
+  return new Date() <= new Date(CONFIG.DONATION_DEADLINE);
 }
 
 /**
@@ -1131,6 +1142,9 @@ function writeDonationRows(p, regId, ts, slipUrl, qrRef, ocrAmount, ocrStatus, s
  */
 function submitDonation(payload) {
   try {
+    if (!isDonationOpen()) {
+      return { ok: false, message: 'ปิดรับบริจาคแล้ว — งานจบเมื่อวันที่ 2 สิงหาคม 2569 🙏 ขอบคุณทุกท่าน' };
+    }
     if (!payload.email && !payload.phone) {
       return { ok: false, message: 'กรุณากรอกอีเมลหรือเบอร์โทรอย่างน้อย 1 อย่าง' };
     }
@@ -1362,6 +1376,9 @@ function submitCashDonation(payload) {
 function submitQuickDonation(payload) {
   try {
     payload = payload || {};
+    if (!isDonationOpen()) {
+      return { ok: false, message: 'ปิดรับบริจาคแล้ว — งานจบเมื่อวันที่ 2 สิงหาคม 2569 🙏 ขอบคุณทุกท่าน' };
+    }
     if (!payload.slip || !payload.slip.data) {
       return { ok: false, message: 'กรุณาแนบสลิปการโอนเงิน' };
     }
