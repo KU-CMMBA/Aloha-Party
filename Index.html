@@ -980,7 +980,43 @@
     100% { background-position: 200% 0; }
   }
 
-  .closed-card { text-align: center; padding: 48px 28px; }
+  .closed-card { text-align: center; padding: 44px 28px 40px; }
+  .closed-badge {
+    display: inline-block;
+    padding: 6px 16px; margin-bottom: 6px;
+    background: rgba(14,165,233,0.1);
+    border: 1px solid rgba(14,165,233,0.25);
+    border-radius: 100px;
+    color: var(--ocean-deep); font-size: 12.5px; font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .closed-sun {
+    font-size: 72px; line-height: 1; margin: 14px 0 18px;
+    filter: drop-shadow(0 8px 18px rgba(249,115,22,0.28));
+    animation: heroBreathe 3s ease-in-out infinite;
+  }
+  .closed-title {
+    color: var(--ocean-deep); margin-bottom: 12px;
+    font-size: 27px; font-weight: 800; letter-spacing: 0.3px;
+  }
+  .closed-divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 30px 4px 22px;
+    color: var(--ink-faint); font-size: 13px; font-weight: 600;
+  }
+  .closed-divider::before, .closed-divider::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(7,89,133,0.18), transparent);
+  }
+  .closed-donate-wrap { display: flex; flex-direction: column; align-items: center; }
+  .closed-donate-btn {
+    width: 100% !important; max-width: 360px;
+    background: linear-gradient(135deg, #F59E0B 0%, #F97316 55%, #FB7185 100%) !important;
+    box-shadow: 0 10px 26px -8px rgba(249,115,22,0.6), 0 4px 10px -3px rgba(245,158,11,0.45) !important;
+    animation: megaBreathe 2.8s ease-in-out infinite;
+  }
+  .closed-donate-btn:hover { animation-play-state: paused; }
+  .closed-hint { margin-top: 12px; color: var(--ink-faint); font-size: 12.5px; line-height: 1.6; }
 
   .spinner {
     display: inline-block; width: 18px; height: 18px;
@@ -2531,12 +2567,23 @@ const steps = {
     progress: 0,
     html: `
       <div class="card closed-card">
-        <div style="font-size: 64px; margin-bottom: 20px;">🌅</div>
-        <h2 style="color: var(--ocean-deep); margin-bottom: 12px;">ปิดรับลงทะเบียนแล้ว</h2>
-        <p style="color: var(--ink-soft); line-height: 1.7;">
-          ขอขอบคุณทุกท่านที่ให้ความสนใจ<br>
-          การลงทะเบียนปิดเมื่อวันที่ 30 มิถุนายน 2569
+        <div class="closed-badge">🌺 CMMBA 34 · Aloha Party</div>
+        <div class="closed-sun">🌅</div>
+        <h2 class="closed-title">ปิดรับลงทะเบียนแล้ว</h2>
+        <p style="color: var(--ink-soft); line-height: 1.75; font-size: 15px;">
+          ขอขอบคุณทุกท่านที่ให้ความสนใจ 🙏<br>
+          การลงทะเบียนปิดเมื่อวันที่ <strong>30 มิถุนายน 2569</strong>
         </p>
+
+        <div class="closed-divider">แต่คุณยังร่วมสนับสนุนงานได้</div>
+
+        <div class="closed-donate-wrap">
+          <button class="btn-mega btn-mega-donate closed-donate-btn" onclick="navigate('donateMethod')">
+            <span class="btn-mega-icon">💝</span>
+            <span class="btn-mega-label">ร่วมบริจาคสนับสนุนงาน</span>
+          </button>
+          <p class="closed-hint">ทุกยอดบริจาคจะขึ้นบนกระดาน Live 🎉<br>ขอบคุณที่เป็นส่วนหนึ่งของ Aloha Party 🌴</p>
+        </div>
       </div>
     `,
   }),
