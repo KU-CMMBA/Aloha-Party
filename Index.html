@@ -980,10 +980,10 @@
     100% { background-position: 200% 0; }
   }
 
-  .closed-card { text-align: center; padding: 44px 28px 40px; }
+  .closed-card { text-align: center; padding: 40px 30px 34px; max-width: 540px; margin: 0 auto; }
   .closed-badge {
     display: inline-block;
-    padding: 6px 16px; margin-bottom: 6px;
+    padding: 6px 16px; margin-bottom: 4px;
     background: rgba(14,165,233,0.1);
     border: 1px solid rgba(14,165,233,0.25);
     border-radius: 100px;
@@ -991,32 +991,46 @@
     letter-spacing: 0.5px;
   }
   .closed-sun {
-    font-size: 72px; line-height: 1; margin: 14px 0 18px;
+    font-size: 60px; line-height: 1; margin: 8px 0 12px;
     filter: drop-shadow(0 8px 18px rgba(249,115,22,0.28));
     animation: heroBreathe 3s ease-in-out infinite;
   }
   .closed-title {
-    color: var(--ocean-deep); margin-bottom: 12px;
-    font-size: 27px; font-weight: 800; letter-spacing: 0.3px;
+    color: var(--ocean-deep); margin-bottom: 10px;
+    font-size: 25px; font-weight: 800; letter-spacing: 0.3px;
   }
   .closed-divider {
     display: flex; align-items: center; gap: 12px;
-    margin: 30px 4px 22px;
-    color: var(--ink-faint); font-size: 13px; font-weight: 600;
+    max-width: 380px; margin: 24px auto 18px;
+    color: var(--ink-faint); font-size: 13px; font-weight: 600; white-space: nowrap;
   }
   .closed-divider::before, .closed-divider::after {
     content: ''; flex: 1; height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(7,89,133,0.18), transparent);
+    background: linear-gradient(90deg, transparent, rgba(7,89,133,0.22), transparent);
   }
-  .closed-donate-wrap { display: flex; flex-direction: column; align-items: center; }
-  .closed-donate-btn {
-    width: 100% !important; max-width: 360px;
-    background: linear-gradient(135deg, #F59E0B 0%, #F97316 55%, #FB7185 100%) !important;
-    box-shadow: 0 10px 26px -8px rgba(249,115,22,0.6), 0 4px 10px -3px rgba(245,158,11,0.45) !important;
-    animation: megaBreathe 2.8s ease-in-out infinite;
+  /* ปุ่ม CTA หน้า closed — self-contained, อยู่กลาง (ไม่พึ่ง btn-mega) */
+  .closed-cta {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    margin: 0 auto;
+    padding: 15px 32px;
+    border: none; border-radius: 100px;
+    font-family: 'Prompt', sans-serif; font-size: 18px; font-weight: 700;
+    color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.12);
+    cursor: pointer;
+    background: linear-gradient(135deg, #F59E0B 0%, #F97316 55%, #FB7185 100%);
+    box-shadow: 0 10px 26px -8px rgba(249,115,22,0.55), 0 4px 10px -3px rgba(245,158,11,0.4);
+    transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+    animation: closedCtaBreathe 2.8s ease-in-out infinite;
   }
-  .closed-donate-btn:hover { animation-play-state: paused; }
-  .closed-hint { margin-top: 12px; color: var(--ink-faint); font-size: 12.5px; line-height: 1.6; }
+  .closed-cta:hover {
+    transform: translateY(-2px) scale(1.03); filter: brightness(1.05);
+    animation-play-state: paused;
+    box-shadow: 0 14px 32px -8px rgba(249,115,22,0.7), 0 5px 12px -3px rgba(245,158,11,0.5);
+  }
+  .closed-cta:active { transform: translateY(-1px) scale(0.99); }
+  .closed-cta-icon { font-size: 22px; line-height: 1; }
+  @keyframes closedCtaBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+  .closed-hint { margin-top: 14px; color: var(--ink-faint); font-size: 12.5px; line-height: 1.6; }
 
   .spinner {
     display: inline-block; width: 18px; height: 18px;
@@ -1193,6 +1207,7 @@ const state = {
   editMode: false,
   editingRegId: '',
   donationOpen: true,
+  regClosed: false,
 };
 
 function emptyData() {
@@ -1271,7 +1286,8 @@ function goToHome() {
   state.donateSlipQrAmount = null;
   state.donateSlipQrTransRef = null;
   state.donateSuccessPayload = null;
-  navigate('welcome', false);
+  // ถ้าปิดรับลงทะเบียนแล้ว → กลับไปหน้า "ปิดรับ" (กันย้อนกลับไปลงทะเบียน)
+  navigate(state.regClosed ? 'closed' : 'welcome', false);
 }
 
 // =============== DONATION ===============
@@ -2579,9 +2595,9 @@ const steps = {
         <div class="closed-divider">แต่คุณยังร่วมสนับสนุนงานได้</div>
 
         <div class="closed-donate-wrap">
-          <button class="btn-mega btn-mega-donate closed-donate-btn" onclick="navigate('donateMethod')">
-            <span class="btn-mega-icon">💝</span>
-            <span class="btn-mega-label">ร่วมบริจาคสนับสนุนงาน</span>
+          <button class="closed-cta" onclick="navigate('donateMethod')">
+            <span class="closed-cta-icon">💝</span>
+            <span>ร่วมบริจาคสนับสนุนงาน</span>
           </button>
           <p class="closed-hint">ทุกยอดบริจาคจะขึ้นบนกระดาน Live 🎉<br>ขอบคุณที่เป็นส่วนหนึ่งของ Aloha Party 🌴</p>
         </div>
@@ -3897,6 +3913,7 @@ window.addEventListener('DOMContentLoaded', () => {
     state.qrImage = qrImage || '';
 
     const isClosed = cfg && !cfg.isOpen;
+    state.regClosed = !!isClosed;
     state.donationOpen = cfg ? (cfg.donationOpen !== false) : true;
     assets = assets || {};
 
