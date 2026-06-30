@@ -1,7 +1,768 @@
-<!--
-  CMMBA 34 — Aloha Party · หน้าจอ Live Donations (Display.html)
-  Google Apps Script HTML Service · เปิดด้วย ?p=display
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aloha Party CMMBA 34 — Live Donations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Prompt:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+    --ocean-deep: #075985; --ocean: #0EA5E9; --ocean-light: #BAE6FD;
+    --sky: #E0F2FE; --cream: #FFF8EC; --sand: #FEF3C7;
+    --sunset: #F97316; --hibiscus: #EF4444; --coral: #FB7185;
+    --leaf: #16A34A; --leaf-deep: #14532D; --gold: #D97706;
+    --ink: #0F172A; --ink-soft: #475569;
+    --shadow: 0 10px 40px -10px rgba(7,89,133,0.25);
+    --shadow-lift: 0 20px 60px -15px rgba(7,89,133,0.4);
+  }
+:root { --gold-bright: #F59E0B; --ink-faint: #94A3B8; }
 
-  📋 วิธีใช้: ก๊อปโค้ดทั้งหมดจากไฟล์ "Display.html" ใน Apps Script
-     มาวางทับไฟล์นี้ทั้งหมด แล้ว commit/push
--->
+html, body {
+  height: 100vh; width: 100vw; overflow: hidden;
+  font-family: 'Prompt', sans-serif; color: var(--ink);
+  background: #FFF8EC;
+}
+
+/* ===== Background images (loaded via JS from Drive) ===== */
+/* Landscape (PC / tablet landscape / phone landscape) = bg-aloha.png */
+body.has-bg-image {
+  background: var(--bg-image-landscape, none) center center / cover no-repeat fixed;
+}
+/* Portrait (phone portrait / tablet portrait) = bg-mobile.png */
+@media (orientation: portrait) {
+  body.has-bg-image {
+    background: var(--bg-image-portrait, none) center center / cover no-repeat fixed;
+  }
+}
+
+/* Splash overlay (เหมือน Index) */
+#splash {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #FFF8EC;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 18px;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+#splash.splash-hide { opacity: 0; visibility: hidden; pointer-events: none; }
+.splash-spinner {
+  width: 48px; height: 48px;
+  border: 4px solid rgba(7,89,133,0.15);
+  border-top-color: var(--sunset);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.splash-text {
+  color: var(--ocean-deep); font-size: 16px; font-weight: 600;
+  text-align: center; line-height: 1.5;
+}
+.splash-text small { font-size: 13px; color: var(--ink-soft); font-weight: 400; }
+
+/* palm + particles removed — force bg image only */
+
+.display-root {
+  position: relative; z-index: 10;
+  height: 100vh; width: 100vw;
+  display: grid; grid-template-rows: auto 1fr auto;
+  padding: 2vh 2.5vw; gap: 1.8vh;
+  opacity: 0; transition: opacity 0.5s ease;
+}
+.display-root.app-ready { opacity: 1; }
+
+header.live-header {
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: 2vw; padding: 0.5vh 1vw;
+}
+.logo-bar {
+  display: flex; align-items: center; gap: 1.2vw;
+  justify-self: start;
+  padding: 1vh 1.5vw;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.95);
+  border-radius: 100px;
+  box-shadow: 0 3px 10px rgba(7,89,133,0.1);
+}
+.logo-bar img { height: 5.5vh; width: auto; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.12)); }
+.logo-divider { width: 1px; height: 4vh; background: rgba(7,89,133,0.25); }
+
+.title-wrap { text-align: center; position: relative; }
+.hero-aloha-logo {
+  display: block; margin: 0 auto;
+  height: 8vh; width: auto;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.12)) drop-shadow(0 0 20px rgba(255,255,255,0.5));
+  animation: heroBreathe 3s ease-in-out infinite;
+  transform-origin: center center;
+}
+@keyframes heroBreathe {
+  0%, 100% { filter: drop-shadow(0 4px 16px rgba(0,0,0,0.12)) drop-shadow(0 0 14px rgba(255,255,255,0.4)); transform: scale(0.97); }
+  50%      { filter: drop-shadow(0 4px 16px rgba(0,0,0,0.12)) drop-shadow(0 0 32px rgba(254,215,170,0.7)); transform: scale(1.03); }
+}
+/* title-fallback removed — force logoAloha only */
+.title-tag {
+  display: inline-block; margin-top: 0.6vh;
+  font-size: 1.3vh; letter-spacing: 0.4em;
+  color: var(--ocean-deep);
+  background: rgba(255,255,255,0.85);
+  padding: 0.5vh 1.2vw; border-radius: 100px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(7,89,133,0.08);
+  font-weight: 600; text-transform: uppercase;
+}
+
+.updated-info {
+  text-align: right; padding: 1vh 1.5vw;
+  justify-self: end;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.95);
+  border-radius: 16px;
+  box-shadow: 0 3px 10px rgba(7,89,133,0.1);
+  line-height: 1.4; color: var(--ink-soft); font-size: 1.3vh;
+}
+.live-badge { display: inline-flex; align-items: center; gap: 0.4vw; color: var(--hibiscus); font-weight: 700; letter-spacing: 0.1em; font-size: 1.4vh; }
+.updated-info .time { font-family: 'Bebas Neue', sans-serif; font-size: 2.4vh; color: var(--ocean-deep); letter-spacing: 0.05em; display: block; margin: 0.2vh 0; }
+.live-dot {
+  display: inline-block; width: 0.9vh; height: 0.9vh; border-radius: 50%;
+  background: var(--hibiscus); box-shadow: 0 0 12px rgba(239,68,68,0.7);
+  animation: pulseLive 1.5s ease-in-out infinite;
+}
+@keyframes pulseLive {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.4); opacity: 0.5; }
+}
+
+.boards { display: grid; grid-template-columns: 1fr 1fr; gap: 2vw; min-height: 0; }
+.board {
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.9);
+  border-radius: 2.4vh;
+  padding: 2vh 1.8vw;
+  display: flex; flex-direction: column;
+  box-shadow: 0 1px 0 rgba(255,255,255,1) inset, 0 4px 12px -2px rgba(7,89,133,0.08), 0 24px 48px -16px rgba(7,89,133,0.18);
+  position: relative; overflow: hidden;
+}
+.board::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+.board-personal::before { background: linear-gradient(90deg, var(--sunset), var(--hibiscus)); }
+.board-batch::before    { background: linear-gradient(90deg, var(--ocean), var(--ocean-deep)); }
+.board-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 1.4vh; border-bottom: 1.5px solid rgba(7,89,133,0.1); margin-bottom: 1.4vh; flex-shrink: 0; }
+.board-h { font-size: 3.2vh; font-weight: 700; display: flex; align-items: center; gap: 0.8vw; }
+.board-personal .board-h { color: var(--sunset); }
+.board-batch .board-h    { color: var(--ocean-deep); }
+.board-h-emoji { font-size: 3.6vh; }
+.board-count { font-family: 'Bebas Neue', sans-serif; font-size: 2.4vh; color: var(--ink-faint); letter-spacing: 0.08em; }
+
+/* ===== Podium (top 3) — เหมือน Index ===== */
+.lb-podium-wrap {
+  display: flex; flex-direction: column;
+  gap: 0.8vh;
+  flex: 1.6;
+  min-height: 0;
+  margin-bottom: 1.2vh;
+}
+.lb-podium {
+  display: grid; grid-template-columns: auto 1fr auto;
+  align-items: center; gap: 1.2vw;
+  padding: 0.8vh 1.4vw; border-radius: 1.6vh;
+  transition: transform 0.2s;
+  position: relative; overflow: hidden;
+  min-height: 0;
+}
+.lb-podium-medal { line-height: 1; flex-shrink: 0; filter: drop-shadow(0 2px 6px rgba(217,119,6,0.5)); }
+.lb-podium-body { min-width: 0; display: flex; flex-direction: column; gap: 0.3vh; overflow: hidden; }
+.lb-podium-name { font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
+.lb-podium-name small { color: var(--ink-soft); font-weight: 500; margin-left: 0.4vw; font-size: 0.65em; }
+.lb-podium-amount { font-family: 'Bebas Neue', sans-serif; font-weight: 700; color: var(--gold); letter-spacing: 0.02em; text-align: right; line-height: 1; flex-shrink: 0; }
+.lb-podium-amount small { font-size: 0.55em; opacity: 0.7; margin-left: 0.2vw; }
+
+/* Tier 1 — biggest (~40% ของ podium space) */
+.lb-tier-1 {
+  flex: 1.4;
+  background: linear-gradient(135deg, rgba(217,119,6,0.22) 0%, rgba(254,215,170,0.45) 100%);
+  border: 2px solid rgba(217,119,6,0.5);
+  box-shadow: 0 6px 16px -4px rgba(217,119,6,0.45);
+}
+.lb-tier-1::after {
+  content: ''; position: absolute; top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,215,0,0.4) 50%, transparent 60%);
+  animation: shimmerSlide 4s ease-in-out infinite; pointer-events: none;
+}
+@keyframes shimmerSlide { 0%, 100% { left: -100%; } 50% { left: 150%; } }
+.lb-tier-1 .lb-podium-medal { font-size: 8vh; }
+.lb-tier-1 .lb-podium-name { font-size: 3.8vh; }
+.lb-tier-1 .lb-podium-amount { font-size: 5.2vh; color: var(--gold-bright); text-shadow: 0 2px 16px rgba(245,158,11,0.5); }
+
+/* Tier 2 */
+.lb-tier-2 {
+  flex: 1.15;
+  background: linear-gradient(135deg, rgba(148,163,184,0.22) 0%, rgba(226,232,240,0.55) 100%);
+  border: 1.5px solid rgba(148,163,184,0.45);
+}
+.lb-tier-2 .lb-podium-medal { font-size: 6.5vh; }
+.lb-tier-2 .lb-podium-name { font-size: 3.2vh; }
+.lb-tier-2 .lb-podium-amount { font-size: 4.2vh; }
+
+/* Tier 3 */
+.lb-tier-3 {
+  flex: 1;
+  background: linear-gradient(135deg, rgba(180,83,9,0.18) 0%, rgba(254,215,170,0.35) 100%);
+  border: 1.5px solid rgba(180,83,9,0.4);
+}
+.lb-tier-3 .lb-podium-medal { font-size: 5.5vh; }
+.lb-tier-3 .lb-podium-name { font-size: 2.8vh; }
+.lb-tier-3 .lb-podium-amount { font-size: 3.6vh; }
+
+/* Empty podium */
+.lb-podium.empty {
+  background: rgba(255,255,255,0.4);
+  border: 1.5px dashed rgba(7,89,133,0.18);
+}
+.lb-podium.empty .lb-podium-name { color: var(--ink-faint); font-style: italic; font-weight: 500; }
+.lb-podium.empty .lb-podium-amount { color: var(--ink-faint); }
+
+/* ===== Mini grid (#4–#10) — 2 columns ===== */
+.lb-mini-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 0.6vh 1.2vw;
+  padding-top: 1.2vh;
+  border-top: 1.5px dashed rgba(7,89,133,0.18);
+}
+.lb-mini {
+  display: grid; grid-template-columns: auto 1fr auto;
+  align-items: center; gap: 1vw;
+  padding: 0.4vh 1.2vw;
+  border-radius: 1vh;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(7,89,133,0.08);
+  min-width: 0; min-height: 0;
+}
+.lb-mini-rank { font-family: 'Bebas Neue', sans-serif; font-size: 2.6vh; font-weight: 700; color: var(--ink-faint); min-width: 4vh; text-align: center; line-height: 1; }
+.lb-mini-name {
+  font-size: 2.2vh; font-weight: 600; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-width: 0; line-height: 1.15;
+}
+.lb-mini-name small { color: var(--ink-soft); font-weight: 500; margin-left: 0.3vw; font-size: 0.75em; }
+.lb-mini-amount {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.6vh; font-weight: 700; color: var(--gold);
+  letter-spacing: 0.02em; line-height: 1;
+}
+.lb-mini-amount small { font-size: 0.6em; opacity: 0.7; margin-left: 0.2vw; }
+.lb-mini.empty .lb-mini-name { color: var(--ink-faint); font-style: italic; font-weight: 500; }
+.lb-mini.empty .lb-mini-amount { color: var(--ink-faint); }
+.lb-mini.empty { background: rgba(255,255,255,0.35); border: 1px dashed rgba(7,89,133,0.15); }
+
+@keyframes flashNew { 0% { background: rgba(74,222,128,0.4); transform: scale(1.02); } 100% { transform: scale(1); } }
+.flash-new { animation: flashNew 1.5s ease-out; }
+
+/* ===== Footer total bar ===== */
+footer.total-bar {
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: 2vw;
+  padding: 1.6vh 2.5vw;
+  background: linear-gradient(135deg, rgba(217,119,6,0.12) 0%, rgba(249,115,22,0.08) 100%);
+  backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+  border: 1.5px solid rgba(217,119,6,0.25);
+  border-radius: 2.4vh;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.8) inset, 0 8px 24px -8px rgba(217,119,6,0.25);
+  position: relative; overflow: hidden;
+}
+footer.total-bar::before {
+  content: ''; position: absolute; top: 0; left: -100%;
+  width: 50%; height: 100%;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,215,0,0.25) 50%, transparent 60%);
+  animation: shimmerSlide 6s ease-in-out infinite; pointer-events: none;
+}
+.total-side { display: flex; align-items: baseline; gap: 0.8vw; }
+.total-side.left  { justify-content: flex-end; }
+.total-side.right { justify-content: flex-start; }
+.total-label { font-size: 1.9vh; color: var(--ink-soft); font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; }
+.total-value { font-family: 'Bebas Neue', sans-serif; font-size: 4vh; color: var(--gold); font-weight: 700; text-shadow: 0 2px 12px rgba(217,119,6,0.2); letter-spacing: 0.02em; }
+.total-amount { text-align: center; }
+.total-amount-label { font-size: 1.8vh; color: var(--ocean-deep); font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.4vh; }
+.total-amount-value {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 7.5vh; line-height: 1;
+  background: linear-gradient(135deg, var(--gold-bright) 0%, var(--sunset) 60%, var(--hibiscus) 100%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 40px rgba(245,158,11,0.3);
+  letter-spacing: 0.02em; font-weight: 700;
+}
+.total-amount-value .baht { font-size: 0.45em; background: none; -webkit-text-fill-color: var(--ink-soft); margin-left: 0.5vw; font-weight: 500; }
+
+@media (max-aspect-ratio: 1/1) {
+  .boards { grid-template-columns: 1fr; gap: 1.5vh; }
+  .display-root { grid-template-rows: auto auto auto auto; }
+  .lb-mini-grid { grid-template-columns: 1fr; }
+}
+
+/* ===== Mobile (≤768px) — override vh-based sizes ที่เล็กเกินไป ===== */
+@media (max-width: 768px) {
+  body { overflow-y: auto; }
+  .display-root {
+    height: auto;
+    min-height: 100vh;
+    width: 100%;
+    grid-template-rows: auto auto auto auto;
+    padding: 14px 14px 20px;
+    gap: 14px;
+  }
+
+  /* Header */
+  header.live-header {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 4px 0;
+  }
+  .logo-bar {
+    justify-self: center;
+    padding: 8px 14px;
+    gap: 10px;
+  }
+  .logo-bar img { height: 36px; }
+  .live-title {
+    font-size: 28px;
+    text-align: center;
+    line-height: 1.1;
+  }
+  .live-tag {
+    font-size: 11px;
+    padding: 5px 12px;
+  }
+  .updated-info {
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .live-badge { font-size: 12px; }
+  .updated-info .time { font-size: 22px; margin: 2px 0; }
+
+  /* Boards */
+  .boards { gap: 14px; }
+  .board-card {
+    padding: 16px 14px;
+    border-radius: 18px;
+  }
+  .board-h { font-size: 20px; gap: 8px; }
+  .board-h-emoji { font-size: 22px; }
+  .board-count { font-size: 16px; }
+
+  /* Podium — tier 1 */
+  .lb-podium { padding: 12px 14px; gap: 12px; border-radius: 14px; }
+  .lb-tier-1 .lb-podium-medal { font-size: 38px; }
+  .lb-tier-1 .lb-podium-name { font-size: 18px; }
+  .lb-tier-1 .lb-podium-amount { font-size: 22px; }
+  .lb-tier-2 .lb-podium-medal { font-size: 30px; }
+  .lb-tier-2 .lb-podium-name { font-size: 16px; }
+  .lb-tier-2 .lb-podium-amount { font-size: 18px; }
+  .lb-tier-3 .lb-podium-medal { font-size: 26px; }
+  .lb-tier-3 .lb-podium-name { font-size: 14px; }
+  .lb-tier-3 .lb-podium-amount { font-size: 16px; }
+  .lb-podium-name small { font-size: 12px; margin-left: 6px; }
+
+  /* Mini rows — single column on mobile */
+  .lb-mini-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .lb-mini { padding: 10px 12px; gap: 10px; border-radius: 10px; }
+  .lb-mini-rank { font-size: 18px; min-width: 32px; }
+  .lb-mini-name { font-size: 15px; }
+  .lb-mini-amount { font-size: 16px; }
+  .lb-mini-name small { font-size: 12px; }
+
+  /* Total bar — stack vertical */
+  footer.total-bar {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    text-align: center;
+  }
+  .total-side {
+    justify-content: center !important;
+    gap: 8px;
+  }
+  .total-label { font-size: 13px; }
+  .total-value { font-size: 26px; }
+  .total-amount-label { font-size: 12px; margin-bottom: 2px; }
+  .total-amount-value { font-size: 48px; }
+  .total-amount-value .baht { font-size: 0.42em; margin-left: 6px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Splash overlay -->
+<div id="splash">
+  <div class="splash-spinner"></div>
+  <div class="splash-text">กำลังโหลด<br><small>Aloha Party CMMBA 34 — Live Donations</small></div>
+</div>
+
+<!-- All background decorations removed — only Drive bg image + logos are allowed -->
+
+
+<div class="display-root" id="displayRoot">
+  <header class="live-header">
+    <div class="logo-bar" id="logoBar" style="visibility:hidden;">
+      <img id="logoKu" alt="Kasetsart University" />
+      <span class="logo-divider"></span>
+      <img id="logoCmmba" alt="KU CIVIL-MILITARY MBA" />
+    </div>
+    <div class="title-wrap">
+      <img id="logoAloha" class="hero-aloha-logo" alt="Aloha Party CMMBA 34" style="display:none;" />
+      <div class="title-tag">🌺 Live Donations · CMMBA 34 🌺</div>
+    </div>
+    <div class="updated-info">
+      <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+      <span class="time" id="updateTime">--:--:--</span>
+      <span style="font-size:1.1vh;">รีเฟรชทุก 10 วินาที</span>
+    </div>
+  </header>
+
+  <main class="boards">
+    <section class="board board-personal">
+      <div class="board-head"><div class="board-h"><span class="board-h-emoji">🏆</span><span>Top 10 ผู้ใจดี</span></div><div class="board-count" id="personalCount">0 คน</div></div>
+      <div class="lb-podium-wrap" id="personalPodium"></div>
+      <div class="lb-mini-grid" id="personalMini"></div>
+    </section>
+    <section class="board board-batch">
+      <div class="board-head"><div class="board-h"><span class="board-h-emoji">🎓</span><span>Top รุ่น</span></div><div class="board-count" id="batchCount">0 รุ่น</div></div>
+      <div class="lb-podium-wrap" id="batchPodium"></div>
+      <div class="lb-mini-grid" id="batchMini"></div>
+    </section>
+  </main>
+
+  <footer class="total-bar">
+    <div class="total-side left"><span class="total-label">ผู้สนับสนุน</span><span class="total-value" id="totalCount">0</span></div>
+    <div class="total-amount">
+      <div class="total-amount-label">💰 ยอดรวมการสนับสนุน 💰</div>
+      <div class="total-amount-value"><span id="totalAmount">0</span><span class="baht">THB</span></div>
+    </div>
+    <div class="total-side right"><span class="total-value" id="batchTotalCount">0</span><span class="total-label">รุ่นที่ร่วม</span></div>
+  </footer>
+</div>
+
+<script>
+const state = { personal:[], batch:[], totalAmount:0, totalCount:0, prevPersonal:new Map(), prevBatch:new Map() };
+
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function formatTime(d){const p=n=>String(n).padStart(2,'0');return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds())}
+function honorific(s){if(!s)return'';const f=(s.name||'').trim().split(/\s+/)[0]||'';return f?'คุณ'+f:(s.name||'')}
+function batchLabel(s){
+  if(!s)return'';
+  if(s.batch)return /^\d+$/.test(String(s.batch))?'รุ่น '+s.batch:s.batch;
+  if(s.group)return s.group;
+  return'';
+}
+function personalDisplay(s, full){
+  if(!s)return '';
+  const name = honorific(s);
+  const sub = batchLabel(s);
+  return full ? escapeHtml(name)+(sub?' <small>· '+escapeHtml(sub)+'</small>':'') : escapeHtml(name);
+}
+function batchDisplay(s){
+  if(!s)return '';
+  const c = s.contributors||0;
+  return escapeHtml(s.name||'')+(c?' <small>· '+c+' คน</small>':'');
+}
+
+// ===== Render Personal (3 podium + 7 mini) =====
+function renderPersonal(){
+  const list = state.personal||[];
+  const podiumEl = document.getElementById('personalPodium');
+  const miniEl = document.getElementById('personalMini');
+  if(!podiumEl||!miniEl)return;
+
+  // Top 3 podium
+  let pHtml='';
+  for(let i=0;i<3;i++){
+    const it=list[i];const rank=i+1;
+    const tier='lb-tier-'+rank;
+    const medal=rank===1?'🥇':rank===2?'🥈':'🥉';
+    const k=it?(it.name||''):'';
+    const prev=state.prevPersonal.get(k);
+    const isNew=it&&(prev===undefined||prev!==it.total);
+    const flash=isNew?' flash-new':'';
+    if(it){
+      pHtml += '<div class="lb-podium '+tier+flash+'">'+
+        '<div class="lb-podium-medal">'+medal+'</div>'+
+        '<div class="lb-podium-body">'+
+          '<div class="lb-podium-name">'+personalDisplay(it,true)+'</div>'+
+        '</div>'+
+        '<div class="lb-podium-amount">'+(it.total||0).toLocaleString()+'<small>฿</small></div>'+
+      '</div>';
+    } else {
+      pHtml += '<div class="lb-podium '+tier+' empty">'+
+        '<div class="lb-podium-medal">'+medal+'</div>'+
+        '<div class="lb-podium-body"><div class="lb-podium-name">— รอผู้สนับสนุน —</div></div>'+
+        '<div class="lb-podium-amount">—</div>'+
+      '</div>';
+    }
+  }
+  podiumEl.innerHTML = pHtml;
+
+  // #4–#10 mini grid
+  let mHtml='';
+  for(let i=3;i<10;i++){
+    const it=list[i];const rank=i+1;
+    const k=it?(it.name||''):'';
+    const prev=state.prevPersonal.get(k);
+    const isNew=it&&(prev===undefined||prev!==it.total);
+    const flash=isNew?' flash-new':'';
+    if(it){
+      mHtml += '<div class="lb-mini'+flash+'">'+
+        '<div class="lb-mini-rank">#'+rank+'</div>'+
+        '<div class="lb-mini-name">'+personalDisplay(it,true)+'</div>'+
+        '<div class="lb-mini-amount">'+(it.total||0).toLocaleString()+'</div>'+
+      '</div>';
+    } else {
+      mHtml += '<div class="lb-mini empty">'+
+        '<div class="lb-mini-rank">#'+rank+'</div>'+
+        '<div class="lb-mini-name">— ว่าง —</div>'+
+        '<div class="lb-mini-amount">—</div>'+
+      '</div>';
+    }
+  }
+  miniEl.innerHTML = mHtml;
+
+  state.prevPersonal = new Map(list.map(s=>[s.name||'',s.total||0]));
+  document.getElementById('personalCount').textContent = list.length+' คน';
+}
+
+// ===== Render Batch (3 podium + 7 mini) =====
+function renderBatch(){
+  const list = state.batch||[];
+  const podiumEl = document.getElementById('batchPodium');
+  const miniEl = document.getElementById('batchMini');
+  if(!podiumEl||!miniEl)return;
+
+  let pHtml='';
+  for(let i=0;i<3;i++){
+    const it=list[i];const rank=i+1;
+    const tier='lb-tier-'+rank;
+    const medal=rank===1?'🥇':rank===2?'🥈':'🥉';
+    const k=it?(it.name||''):'';
+    const prev=state.prevBatch.get(k);
+    const isNew=it&&(prev===undefined||prev!==it.total);
+    const flash=isNew?' flash-new':'';
+    if(it){
+      pHtml += '<div class="lb-podium '+tier+flash+'">'+
+        '<div class="lb-podium-medal">'+medal+'</div>'+
+        '<div class="lb-podium-body">'+
+          '<div class="lb-podium-name">'+batchDisplay(it)+'</div>'+
+        '</div>'+
+        '<div class="lb-podium-amount">'+(it.total||0).toLocaleString()+'<small>฿</small></div>'+
+      '</div>';
+    } else {
+      pHtml += '<div class="lb-podium '+tier+' empty">'+
+        '<div class="lb-podium-medal">'+medal+'</div>'+
+        '<div class="lb-podium-body"><div class="lb-podium-name">— รอรุ่นแรก —</div></div>'+
+        '<div class="lb-podium-amount">—</div>'+
+      '</div>';
+    }
+  }
+  podiumEl.innerHTML = pHtml;
+
+  let mHtml='';
+  for(let i=3;i<10;i++){
+    const it=list[i];const rank=i+1;
+    const k=it?(it.name||''):'';
+    const prev=state.prevBatch.get(k);
+    const isNew=it&&(prev===undefined||prev!==it.total);
+    const flash=isNew?' flash-new':'';
+    if(it){
+      mHtml += '<div class="lb-mini'+flash+'">'+
+        '<div class="lb-mini-rank">#'+rank+'</div>'+
+        '<div class="lb-mini-name">'+batchDisplay(it)+'</div>'+
+        '<div class="lb-mini-amount">'+(it.total||0).toLocaleString()+'</div>'+
+      '</div>';
+    } else {
+      mHtml += '<div class="lb-mini empty">'+
+        '<div class="lb-mini-rank">#'+rank+'</div>'+
+        '<div class="lb-mini-name">— ว่าง —</div>'+
+        '<div class="lb-mini-amount">—</div>'+
+      '</div>';
+    }
+  }
+  miniEl.innerHTML = mHtml;
+
+  state.prevBatch = new Map(list.map(s=>[s.name||'',s.total||0]));
+  document.getElementById('batchCount').textContent = list.length+' รุ่น';
+  document.getElementById('batchTotalCount').textContent = list.length;
+}
+
+function animateCount(id,from,to,dur){
+  const el=document.getElementById(id);if(!el)return;
+  const start=performance.now();
+  function tick(now){
+    const t=Math.min(1,(now-start)/dur);
+    const eased=1-Math.pow(1-t,3);
+    el.textContent=Math.round(from+(to-from)*eased).toLocaleString();
+    if(t<1)requestAnimationFrame(tick);else el.textContent=to.toLocaleString();
+  }
+  requestAnimationFrame(tick);
+}
+function renderTotal(){
+  const totalEl=document.getElementById('totalAmount');
+  const countEl=document.getElementById('totalCount');
+  const prev=parseInt((totalEl.textContent||'0').replace(/,/g,''),10)||0;
+  const next=state.totalAmount||0;
+  if(next!==prev)animateCount('totalAmount',prev,next,800);
+  countEl.textContent=(state.totalCount||0).toLocaleString();
+}
+
+// ===== Promise wrapper for google.script.run =====
+function callBackend(method, timeoutMs){
+  timeoutMs = timeoutMs || 30000; // 30s — Apps Script cold start
+  return new Promise(resolve => {
+    let done = false;
+    const timer = setTimeout(() => { if(!done){done=true; console.warn('[timeout '+timeoutMs+'ms] '+method); resolve(null);} }, timeoutMs);
+    google.script.run
+      .withSuccessHandler(res => { if(!done){done=true; clearTimeout(timer); resolve(res);} })
+      .withFailureHandler(err => { if(!done){done=true; clearTimeout(timer); console.error('['+method+']', err); resolve(null);} })
+      [method]();
+  });
+}
+function preloadImage(src){
+  return new Promise(resolve => {
+    if(!src){resolve(null);return;}
+    const img = new Image();
+    img.onload = () => resolve(src);
+    img.onerror = () => resolve(null);
+    img.src = src;
+    setTimeout(() => resolve(null), 6000);
+  });
+}
+
+// ===== Apply assets to DOM (defensive — skip ตัวที่ไม่มี) =====
+function applyAssets(assets){
+  assets = assets || {};
+  if(assets.bg){
+    document.documentElement.style.setProperty('--bg-image-landscape', "url('"+assets.bg+"')");
+  }
+  if(assets.bgMobile){
+    document.documentElement.style.setProperty('--bg-image-portrait',  "url('"+assets.bgMobile+"')");
+  }
+  if(assets.bg || assets.bgMobile){
+    document.body.classList.add('has-bg-image');
+  }
+
+  // Logo bar (KU + CMMBA)
+  const bar = document.getElementById('logoBar');
+  const ku = document.getElementById('logoKu');
+  const cm = document.getElementById('logoCmmba');
+  let hasLogo = false;
+  if(assets.logoKu && ku){ ku.src = assets.logoKu; hasLogo = true; }
+  if(assets.logoCmmba && cm){ cm.src = assets.logoCmmba; hasLogo = true; }
+  if(bar && hasLogo) bar.style.visibility = 'visible';
+
+  // Logo Aloha (กลางจอ)
+  const al = document.getElementById('logoAloha');
+  if(assets.logoAloha && al){
+    al.src = assets.logoAloha;
+    al.style.display = 'block';
+  }
+}
+
+// ===== Refresh (background) =====
+function refresh(){
+  Promise.all([
+    callBackend('getTopSpenders'),
+    callBackend('getTopBatchSpenders'),
+    callBackend('getDonationTotal'),
+  ]).then(([personal, batch, stats]) => {
+    state.personal = personal || [];
+    state.batch = batch || [];
+    if(stats){
+      state.totalAmount = stats.total || 0;
+      state.totalCount = stats.count || 0;
+    } else {
+      const sum = (state.personal||[]).reduce((a,s)=>a+(s.total||0),0)
+                + (state.batch||[]).reduce((a,s)=>a+(s.total||0),0);
+      state.totalAmount = sum;
+      state.totalCount = (state.personal||[]).length;
+    }
+    renderPersonal();
+    renderBatch();
+    renderTotal();
+    document.getElementById('updateTime').textContent = formatTime(new Date());
+  });
+}
+
+// ===== Bootstrap: best-effort, reveal always =====
+window.addEventListener('DOMContentLoaded', () => {
+  Promise.all([
+    callBackend('getAssets'),
+    callBackend('getTopSpenders'),
+    callBackend('getTopBatchSpenders'),
+    callBackend('getDonationTotal'),
+  ]).then(([assets, personal, batch, stats]) => {
+    state.personal = personal || [];
+    state.batch = batch || [];
+    if(stats){
+      state.totalAmount = stats.total || 0;
+      state.totalCount = stats.count || 0;
+    } else {
+      const sum = state.personal.reduce((a,s)=>a+(s.total||0),0)
+                + state.batch.reduce((a,s)=>a+(s.total||0),0);
+      state.totalAmount = sum;
+      state.totalCount = state.personal.length;
+    }
+    assets = assets || {};
+    // Preload images (best effort — ไม่ block)
+    return Promise.all([
+      preloadImage(assets.bg),
+      preloadImage(assets.bgMobile),
+      preloadImage(assets.logoAloha),
+      preloadImage(assets.logoKu),
+      preloadImage(assets.logoCmmba),
+    ]).then(() => assets);
+  }).then((assets) => {
+    applyAssets(assets);
+    renderPersonal();
+    renderBatch();
+    document.getElementById('totalAmount').textContent = (state.totalAmount||0).toLocaleString();
+    document.getElementById('totalCount').textContent = (state.totalCount||0).toLocaleString();
+    document.getElementById('updateTime').textContent = formatTime(new Date());
+
+    // Reveal app + hide splash
+    requestAnimationFrame(() => {
+      document.getElementById('displayRoot').classList.add('app-ready');
+      const splash = document.getElementById('splash');
+      if(splash){
+        splash.classList.add('splash-hide');
+        setTimeout(() => splash.remove(), 600);
+      }
+    });
+
+    // Start background refresh
+    setInterval(refresh, 10000);
+    setInterval(() => { document.getElementById('updateTime').textContent = formatTime(new Date()); }, 1000);
+  }).catch(err => {
+    console.error('Boot error:', err);
+    // reveal เปล่าๆ — ไม่ stuck splash
+    requestAnimationFrame(() => {
+      document.getElementById('displayRoot').classList.add('app-ready');
+      const splash = document.getElementById('splash');
+      if(splash){ splash.classList.add('splash-hide'); setTimeout(() => splash.remove(), 600); }
+    });
+  });
+});
+</script>
+</body>
+</html>

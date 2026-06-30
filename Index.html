@@ -1,7 +1,4520 @@
-<!--
-  CMMBA 34 — Aloha Party · หน้าฟอร์มลงทะเบียน (Index.html)
-  Google Apps Script HTML Service
+DEADLINE<!DOCTYPE html>
+<html lang="th">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Aloha Party CMMBA 34 — ลงทะเบียน</title>
 
-  📋 วิธีใช้: ก๊อปโค้ดทั้งหมดจากไฟล์ "Index.html" ใน Apps Script
-     มาวางทับไฟล์นี้ทั้งหมด แล้ว commit/push
--->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<style>
+  :root {
+    --ocean-deep: #075985; --ocean: #0EA5E9; --ocean-light: #BAE6FD;
+    --sky: #E0F2FE; --cream: #FFF8EC; --sand: #FEF3C7;
+    --sunset: #F97316; --hibiscus: #EF4444; --coral: #FB7185;
+    --leaf: #16A34A; --leaf-deep: #14532D; --gold: #D97706;
+    --ink: #0F172A; --ink-soft: #475569;
+    --shadow: 0 10px 40px -10px rgba(7,89,133,0.25);
+    --shadow-lift: 0 20px 60px -15px rgba(7,89,133,0.4);
+  }
+  /* === Animations: หน้าให้ดูมีชีวิต === */
+
+  /* Form mode — ซ่อน hero ทั้งหมด เหลือแค่ฟอร์ม */
+  body.form-mode .hero,
+  body.form-mode .hero-tag-row,
+  body.form-mode .hero-meta-row {
+    display: none;
+  }
+  body.form-mode .container {
+    padding-top: 24px;
+  }
+
+  /* Step transitions — fade + slide smooth */
+  #stepRoot {
+    transition: opacity 0.18s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  #stepRoot.step-leaving {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  #stepRoot.step-entering {
+    opacity: 0;
+    transform: translateY(12px);
+    transition: none;
+  }
+
+  /* particles removed — force bg image only */
+
+  /* Hero meta pills — micro interaction บน hover */
+  .hero-meta-row span {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
+  }
+  .hero-meta-row span:hover {
+    transform: translateY(-3px) scale(1.04);
+    box-shadow: 0 6px 16px rgba(7,89,133,0.18);
+  }
+
+  /* Tag — soft pulsing */
+  .hero-tag {
+    animation: tagPulse 4s ease-in-out infinite;
+  }
+  @keyframes tagPulse {
+    0%, 100% { box-shadow: 0 2px 8px rgba(7,89,133,0.08); }
+    50%      { box-shadow: 0 2px 16px rgba(254,215,170,0.45); }
+  }
+
+  /* Welcome flower — gentle floating */
+  .welcome-flower {
+    animation: flowerSway 5s ease-in-out infinite;
+    transform-origin: center bottom;
+  }
+  @keyframes flowerSway {
+    0%, 100% { transform: rotate(-3deg) translateY(0); }
+    50%      { transform: rotate(3deg) translateY(-3px); }
+  }
+
+  /* Primary button — subtle breathing + hover lift */
+  .btn-primary {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(105deg,
+      transparent 30%,
+      rgba(255,255,255,0.35) 50%,
+      transparent 70%);
+    transition: left 0.6s ease;
+    pointer-events: none;
+  }
+  .btn-primary:hover::before { left: 100%; }
+  .btn-primary:hover {
+    transform: translateY(-2px) scale(1.02);
+  }
+
+  /* Top podium rows — shimmer subtle bg */
+  @keyframes shimmerSlide {
+    0%   { left: -150%; }
+    50%  { left: 150%; }
+    100% { left: 150%; }
+  }
+
+  /* Splash overlay (during initial load) */
+  #splash {
+    position: fixed; inset: 0;
+    z-index: 9999;
+    background: linear-gradient(180deg, var(--sky) 0%, #FFF8EC 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+  }
+  #splash.splash-hide {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .splash-spinner {
+    width: 48px; height: 48px;
+    border: 4px solid rgba(7,89,133,0.15);
+    border-top-color: var(--sunset);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+  .splash-text {
+    color: var(--ocean-deep);
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .splash-text small {
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-weight: 400;
+  }
+
+  /* App root — invisible until ready */
+  .app-root {
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+  .app-root.app-ready {
+    opacity: 1;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: 'Prompt', sans-serif;
+    color: var(--ink);
+    background: #FFF8EC;
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+
+  /* ===== Background images (loaded via JS from Drive) ===== */
+  /* Landscape (PC / tablet landscape / phone landscape) = bg-aloha.png */
+  body.has-bg-image {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.45) 60%, rgba(255,255,255,0.85) 100%),
+      var(--bg-image-landscape, none) center center / cover no-repeat fixed;
+  }
+  body.has-bg-image.landing-mode {
+    background: var(--bg-image-landscape, none) center center / cover no-repeat fixed;
+  }
+  /* Portrait (phone portrait / tablet portrait) = bg-mobile.png */
+  @media (orientation: portrait) {
+    body.has-bg-image {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.45) 60%, rgba(255,255,255,0.85) 100%),
+        var(--bg-image-portrait, none) center center / cover no-repeat fixed;
+    }
+    body.has-bg-image.landing-mode {
+      background: var(--bg-image-portrait, none) center center / cover no-repeat fixed;
+    }
+  }
+
+  .container {
+    position: relative; z-index: 10;
+    max-width: 1180px; margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+
+  /* Single-column form layout */
+  .form-column {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  /* Landing mode — กว้างเต็มพื้นที่เพื่อ welcome-split 2 col */
+  body.landing-mode .form-column {
+    max-width: 1100px;
+  }
+  @media (max-width: 960px) {
+    .container { max-width: 720px; padding: 24px 16px 60px; }
+  }
+
+  /* Landing mode — allow normal scrolling (no viewport-height constraint) */
+  body.landing-mode .hero { flex-shrink: 0; }
+  body.landing-mode footer {
+    margin-top: 16px;
+  }
+
+  /* Hero — 2 columns: left = logos+tag, right = aloha logo */
+  .hero {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    text-align: left;
+    margin: 0 auto 18px;
+    max-width: 1000px;
+    animation: dropIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .hero-left {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .hero-right {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  @media (max-width: 768px) {
+    .hero {
+      flex-direction: column;
+      text-align: center;
+      gap: 14px;
+    }
+  }
+
+  /* Hero meta — pill (ใต้ hero, กลางจอ) */
+  .hero-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin: 0 auto 22px;
+    max-width: 100%;
+    animation: dropIn 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .hero-meta-row span {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.95);
+    border-radius: 100px;
+    box-shadow: 0 3px 10px rgba(7,89,133,0.1);
+    color: var(--ocean-deep);
+    font-size: 16px;
+    font-weight: 600;
+  }
+  body.landing-mode .hero-meta-row { margin-bottom: 10px; gap: 8px; }
+  body.landing-mode .hero-meta-row span { padding: 6px 14px; font-size: 13px; }
+  @media (max-width: 600px) {
+    .hero-meta-row span { font-size: 13px; padding: 7px 14px; }
+  }
+
+  /* Logo bar inside hero-left */
+  .logo-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .logo-bar img {
+    height: 56px;
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
+  }
+  .logo-divider {
+    width: 1px;
+    height: 38px;
+    background: rgba(7,89,133,0.3);
+  }
+  body.landing-mode .logo-bar img { height: 38px; }
+  body.landing-mode .logo-divider { height: 26px; }
+  @media (max-width: 600px) {
+    .logo-bar img { height: 38px; }
+    .logo-bar { gap: 10px; }
+    .logo-divider { height: 28px; }
+  }
+
+  /* Aloha logo (right side) */
+  .hero-right {
+    position: relative;
+  }
+  .hero-logo {
+    display: block;
+    max-width: 100%;
+    width: clamp(280px, 38vw, 460px);
+    height: auto;
+    filter:
+      drop-shadow(0 4px 16px rgba(0,0,0,0.12))
+      drop-shadow(0 0 20px rgba(255,255,255,0.5));
+    position: relative;
+    z-index: 1;
+    animation: heroBreathe 3s ease-in-out infinite;
+    transform-origin: center center;
+  }
+  @keyframes heroBreathe {
+    0% {
+      filter:
+        drop-shadow(0 4px 16px rgba(0,0,0,0.12))
+        drop-shadow(0 0 14px rgba(255,255,255,0.35));
+      transform: scale(0.94) rotate(-2deg);
+    }
+    50% {
+      filter:
+        drop-shadow(0 4px 16px rgba(0,0,0,0.12))
+        drop-shadow(0 0 32px rgba(254,215,170,0.7));
+      transform: scale(1.06) rotate(2deg);
+    }
+    100% {
+      filter:
+        drop-shadow(0 4px 16px rgba(0,0,0,0.12))
+        drop-shadow(0 0 14px rgba(255,255,255,0.35));
+      transform: scale(0.94) rotate(-2deg);
+    }
+  }
+
+  .hero-logo-wrap {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+  }
+
+  body.landing-mode .hero-logo {
+    width: clamp(180px, 22vw, 270px);
+  }
+  @media (max-width: 768px) {
+    .hero-logo { width: clamp(240px, 60vw, 380px); }
+  }
+
+  /* Hero tag */
+  .hero-tag-row {
+    display: flex;
+    justify-content: center;
+    margin: 4px 0 14px;
+    animation: dropIn 0.85s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  body.landing-mode .hero-tag-row { margin: 0 0 8px; }
+  body.landing-mode .hero { margin: 0 auto 8px; gap: 18px; flex-shrink: 0; }
+  .hero-tag {
+    display: inline-block;
+    font-size: 12px; letter-spacing: 3.5px;
+    font-weight: 600; color: var(--ocean-deep);
+    text-transform: uppercase;
+    background: rgba(255,255,255,0.85);
+    padding: 7px 18px; border-radius: 100px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 2px 8px rgba(7,89,133,0.08);
+  }
+  body.landing-mode .hero-tag { font-size: 11px; padding: 6px 16px; }
+
+  /* Hero meta — pill */
+  .hero-meta {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    color: var(--ocean-deep);
+    font-size: 14px; font-weight: 500;
+  }
+  .hero-meta span {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.9);
+    border-radius: 100px;
+    box-shadow: 0 2px 8px rgba(7,89,133,0.08);
+  }
+  body.landing-mode .hero-meta { font-size: 13px; gap: 6px; }
+  body.landing-mode .hero-meta span { padding: 5px 12px; }
+
+  /* hero text fallback removed — force logoAloha only */
+
+  /* Progress */
+  .progress-wrap {
+    background: rgba(255,255,255,0.5); border-radius: 100px;
+    padding: 4px; margin-bottom: 24px; backdrop-filter: blur(8px);
+    box-shadow: inset 0 1px 2px rgba(7,89,133,0.1);
+  }
+  .progress-bar {
+    height: 6px;
+    background: linear-gradient(90deg, var(--ocean) 0%, var(--sunset) 50%, var(--hibiscus) 100%);
+    border-radius: 100px; width: 5%;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Card — Bento style */
+  .card {
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border-radius: 28px;
+    padding: 36px 32px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,1) inset,
+      0 4px 12px -2px rgba(7,89,133,0.08),
+      0 24px 48px -16px rgba(7,89,133,0.18);
+    border: 1px solid rgba(255,255,255,0.9);
+    animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 18px;
+  }
+  @media (max-width: 600px) {
+    .card { padding: 28px 22px; border-radius: 22px; }
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .step-label {
+    font-size: 12px; letter-spacing: 2.5px; color: var(--sunset);
+    font-weight: 700; text-transform: uppercase; margin-bottom: 10px;
+  }
+  .step-title {
+    font-size: 30px; font-weight: 700; color: var(--ocean-deep);
+    line-height: 1.25; margin-bottom: 10px; letter-spacing: -0.3px;
+  }
+  .step-desc {
+    color: var(--ink-soft); font-size: 16px; line-height: 1.7; margin-bottom: 28px;
+  }
+
+  /* Welcome card */
+  .welcome-card {
+    text-align: center;
+    padding: 36px 32px !important;
+    position: relative;
+    overflow: hidden;
+  }
+  .welcome-flower {
+    display: block;
+    margin: 0 auto 12px;
+    width: clamp(70px, 9vw, 100px);
+    height: auto;
+    filter: drop-shadow(0 4px 12px rgba(217,119,6,0.2));
+  }
+  body.landing-mode .welcome-flower {
+    width: clamp(70px, 7vw, 90px);
+    margin-bottom: 8px;
+  }
+  body.landing-mode .welcome-card {
+    padding: 18px 22px !important;
+    justify-content: center;
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+  }
+  body.landing-mode .welcome-flower {
+    width: clamp(48px, 5vw, 60px);
+    margin-bottom: 2px;
+  }
+  body.landing-mode .welcome-h {
+    font-size: 26px;
+    margin-bottom: 6px;
+    letter-spacing: -0.5px;
+  }
+  body.landing-mode .welcome-p {
+    font-size: 16px;
+    line-height: 1.55;
+    margin-bottom: 6px;
+  }
+  body.landing-mode .welcome-deadline {
+    font-size: 15px;
+    margin-top: 2px;
+  }
+  body.landing-mode .welcome-card .notice {
+    padding: 10px 14px;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 6px 0 8px;
+  }
+  body.landing-mode .btn-hero {
+    padding: 11px 26px;
+    font-size: 16px;
+    margin-top: 0;
+  }
+  body.landing-mode .btn-link-edit {
+    font-size: 13px;
+    margin-top: 6px;
+    padding: 4px 10px;
+  }
+  .welcome-card::before {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .welcome-card::after {
+    content: '';
+    position: absolute;
+    bottom: -100px; left: -60px;
+    width: 220px; height: 220px;
+    background: radial-gradient(circle, rgba(14,165,233,0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .welcome-emoji {
+    font-size: 56px; margin-bottom: 16px;
+    position: relative;
+    animation: floatGentle 4s ease-in-out infinite;
+  }
+  @keyframes floatGentle {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .welcome-h {
+    font-family: 'Prompt', sans-serif;
+    font-weight: 700;
+    font-size: 32px;
+    background: linear-gradient(135deg, var(--ocean-deep) 0%, var(--sunset) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    margin-bottom: 14px;
+    letter-spacing: -0.3px;
+    position: relative;
+  }
+  .welcome-p {
+    color: var(--ink-soft); font-size: 16px; line-height: 1.8;
+    margin-bottom: 24px;
+    position: relative;
+  }
+  .welcome-p strong { color: var(--sunset); font-weight: 700; }
+  .welcome-deadline {
+    display: inline-block;
+    margin-top: 8px;
+    color: #DC2626;
+    font-weight: 700;
+    font-size: 0.95em;
+  }
+  .btn-hero {
+    margin-top: 0;
+    padding: 16px 32px;
+    font-size: 17px;
+    position: relative;
+  }
+  .welcome-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: nowrap;
+  }
+  .welcome-actions .btn-hero {
+    font-size: 18px;
+    padding: 14px 28px;
+    flex: 2;
+  }
+  .btn-sub {
+    font-size: 14px;
+    padding: 10px 16px;
+    background: rgba(14, 165, 233, 0.08);
+    color: var(--ocean-deep);
+    border: 1px solid rgba(14, 165, 233, 0.18);
+    flex: 1;
+    white-space: nowrap;
+  }
+  .btn-sub:hover {
+    background: rgba(14, 165, 233, 0.14);
+    border-color: rgba(14, 165, 233, 0.3);
+  }
+  body.landing-mode .welcome-actions {
+    gap: 6px;
+    margin-top: 8px;
+  }
+  body.landing-mode .welcome-actions .btn-hero {
+    font-size: 15px;
+    padding: 11px 18px;
+  }
+  body.landing-mode .btn-sub {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  @media (max-width: 540px) {
+    .welcome-actions { flex-wrap: wrap; }
+    .welcome-actions .btn-hero { flex: 1 1 100%; }
+    .btn-sub { flex: 1 1 calc(50% - 4px); }
+  }
+
+  /* ===== Welcome split (2-column layout for welcome page) ===== */
+  .welcome-split {
+    display: grid;
+    grid-template-columns: 1.8fr 1fr;
+    gap: 24px;
+    align-items: stretch;
+    width: 100%;
+  }
+  .welcome-split-left {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .welcome-split-left > .welcome-card {
+    margin-bottom: 0;
+  }
+  .welcome-split-right {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    justify-content: center;
+    height: 100%;
+  }
+  /* Mobile / narrow / portrait → stack เป็น column เดียว */
+  @media (max-width: 900px), (orientation: portrait) {
+    .welcome-split {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    .welcome-split-right {
+      height: auto;
+      gap: 16px;
+    }
+  }
+
+  /* ===== Mega buttons (ปุ่มหลักหน้า welcome) — แบน, horizontal layout ===== */
+  .btn-mega {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    padding: 24px 24px;
+    border: none;
+    border-radius: 18px;
+    cursor: pointer;
+    font-family: 'Prompt', sans-serif;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.25s ease,
+                filter 0.25s ease;
+    overflow: hidden;
+  }
+  .btn-mega::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.22) 0%, transparent 50%, rgba(255,255,255,0.08) 100%);
+    pointer-events: none;
+  }
+  .btn-mega:hover {
+    transform: translateY(-2px) scale(1.015);
+    filter: brightness(1.06);
+  }
+  .btn-mega:active {
+    transform: translateY(-1px) scale(0.99);
+  }
+  .btn-mega-icon {
+    font-size: 24px;
+    line-height: 1;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.18));
+  }
+  .btn-mega-label {
+    font-size: 19px;
+    line-height: 1.1;
+    letter-spacing: 0.3px;
+  }
+  /* sub label inline, ตามหลังด้วย separator */
+  .btn-mega-sub {
+    display: none; /* ปุ่มแบน ไม่ใช้ sub label */
+  }
+
+  /* Register — orange/red gradient + breathing animation */
+  .btn-mega-register {
+    background: linear-gradient(135deg, #F97316 0%, #EF4444 50%, #FB7185 100%);
+    box-shadow:
+      0 8px 20px -8px rgba(249,115,22,0.55),
+      0 3px 8px -3px rgba(239,68,68,0.4);
+    animation: megaBreathe 2.6s ease-in-out infinite;
+  }
+  .btn-mega-register:hover {
+    box-shadow:
+      0 12px 28px -8px rgba(249,115,22,0.7),
+      0 5px 12px -3px rgba(239,68,68,0.5);
+  }
+  @keyframes megaBreathe {
+    0%, 100% {
+      transform: scale(1);
+      box-shadow:
+        0 8px 20px -8px rgba(249,115,22,0.55),
+        0 3px 8px -3px rgba(239,68,68,0.4),
+        0 0 0 0 rgba(249,115,22,0);
+    }
+    50% {
+      transform: scale(1.025);
+      box-shadow:
+        0 12px 28px -8px rgba(249,115,22,0.75),
+        0 5px 14px -3px rgba(239,68,68,0.55),
+        0 0 0 10px rgba(249,115,22,0.07);
+    }
+  }
+  /* hover ทับ breathe ให้ลื่นไหล */
+  .btn-mega-register:hover {
+    animation-play-state: paused;
+    transform: translateY(-2px) scale(1.04);
+  }
+
+  /* Donate — ocean gradient, no breathing, เล็กกว่า register ทั้งกว้างและสูง */
+  .btn-mega-donate {
+    width: 70%;
+    align-self: center;
+    padding: 16px 20px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #0EA5E9 0%, #075985 100%);
+    box-shadow:
+      0 6px 16px -6px rgba(14,165,233,0.45),
+      0 2px 6px -2px rgba(7,89,133,0.3);
+  }
+  .btn-mega-donate .btn-mega-icon { font-size: 18px; }
+  .btn-mega-donate .btn-mega-label { font-size: 15px; }
+  .btn-mega-donate:hover {
+    box-shadow:
+      0 10px 22px -6px rgba(14,165,233,0.6),
+      0 4px 10px -2px rgba(7,89,133,0.4);
+  }
+
+  /* Edit link (small text under mega buttons) */
+  .btn-edit-link {
+    background: transparent;
+    border: none;
+    color: var(--ocean-deep);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 4px;
+    align-self: center;
+    opacity: 0.75;
+    transition: opacity 0.2s;
+  }
+  .btn-edit-link:hover { opacity: 1; }
+
+  @media (max-width: 900px), (orientation: portrait) {
+    .btn-mega { padding: 18px 18px; gap: 10px; }
+    .btn-mega-icon { font-size: 22px; }
+    .btn-mega-label { font-size: 17px; }
+    .btn-mega-donate { padding: 14px 18px; width: 80%; }
+  }
+  .btn-link-edit {
+    background: transparent;
+    border: none;
+    color: var(--ocean-deep);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 14px;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.2s;
+    text-decoration: underline;
+    text-decoration-color: rgba(7,89,133,0.3);
+    text-underline-offset: 4px;
+  }
+  .btn-link-edit:hover {
+    background: rgba(7,89,133,0.06);
+    text-decoration-color: var(--ocean-deep);
+  }
+
+  /* Section heading inside card */
+  .section-h {
+    font-size: 17px; color: var(--ocean-deep); font-weight: 600;
+    margin-bottom: 14px; margin-top: 22px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-h:first-child { margin-top: 0; }
+
+  /* Field */
+  .field { margin-bottom: 18px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 480px) { .field-row { grid-template-columns: 1fr; } }
+  label {
+    display: block; font-size: 15px; font-weight: 600;
+    color: var(--ocean-deep); margin-bottom: 8px;
+  }
+  label .req { color: var(--hibiscus); margin-left: 2px; }
+  label .hint { font-weight: 400; color: var(--ink-soft); font-size: 12px; margin-left: 4px; }
+
+  input[type=text], input[type=tel], input[type=email],
+  input[type=number], input[type=date], select, textarea {
+    width: 100%; padding: 13px 14px;
+    border: 1.5px solid rgba(14,165,233,0.2);
+    border-radius: 12px; font-family: inherit; font-size: 16px;
+    background: rgba(255,255,255,0.7); color: var(--ink);
+    transition: all 0.2s;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--ocean); background: #fff;
+    box-shadow: 0 0 0 4px rgba(14,165,233,0.12);
+  }
+  textarea { resize: vertical; min-height: 80px; }
+
+  .field-hint { font-size: 13px; color: var(--ink-soft); margin-top: 5px; line-height: 1.5; }
+
+  /* Choice cards (radio) */
+  .choice-list { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px;
+    border: 1.5px solid rgba(14,165,233,0.2);
+    border-radius: 14px; background: rgba(255,255,255,0.6);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .choice:hover { border-color: var(--ocean); background: #fff; transform: translateX(2px); }
+  .choice input { margin-top: 3px; accent-color: var(--ocean); flex-shrink: 0; }
+  .choice-body { flex: 1; }
+  .choice-title { font-weight: 600; color: var(--ink); font-size: 16px; }
+  .choice-desc { font-size: 13px; color: var(--ink-soft); margin-top: 3px; }
+  .choice.selected {
+    border-color: var(--sunset);
+    background: linear-gradient(135deg, rgba(249,115,22,0.06), rgba(239,68,68,0.06));
+    box-shadow: 0 4px 12px -4px rgba(249,115,22,0.3);
+  }
+  .choice-emoji { font-size: 22px; flex-shrink: 0; }
+  .choice-price {
+    margin-left: auto; font-size: 12px; font-weight: 700;
+    color: var(--sunset); background: rgba(249,115,22,0.12);
+    padding: 4px 10px; border-radius: 100px; flex-shrink: 0;
+  }
+  .choice-price.free { color: var(--leaf); background: rgba(22,163,74,0.12); }
+
+  /* Pill checkboxes */
+  .pill-grid {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.7);
+    border: 1.5px solid rgba(14,165,233,0.2);
+    border-radius: 100px;
+    cursor: pointer; transition: all 0.2s;
+    font-size: 14px; color: var(--ink);
+    user-select: none;
+  }
+  .pill:hover { border-color: var(--ocean); background: #fff; }
+  .pill input { display: none; }
+  .pill .pill-check {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 1.5px solid rgba(14,165,233,0.4);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 11px; font-weight: 700;
+    transition: all 0.15s;
+  }
+  .pill.selected {
+    background: linear-gradient(135deg, var(--ocean), #0284c7);
+    color: #fff; border-color: var(--ocean);
+    box-shadow: 0 4px 10px -3px rgba(14,165,233,0.4);
+  }
+  .pill.selected .pill-check {
+    background: #fff; color: var(--ocean); border-color: #fff;
+  }
+  .pill.selected .pill-check::before { content: '✓'; }
+  .pill.exclusive.selected {
+    background: linear-gradient(135deg, var(--leaf), #15803d);
+    border-color: var(--leaf);
+  }
+  .pill.exclusive.selected .pill-check { color: var(--leaf); }
+
+  /* Buttons */
+  .button-row { display: flex; gap: 12px; margin-top: 28px; }
+  .btn {
+    flex: 1; padding: 15px 20px; border: none; border-radius: 14px;
+    font-family: inherit; font-size: 16px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--sunset), var(--hibiscus));
+    color: #fff; box-shadow: 0 8px 24px -8px rgba(239,68,68,0.5);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 32px -8px rgba(239,68,68,0.6); }
+  .btn-primary:disabled {
+    background: #cbd5e1; color: #fff; cursor: not-allowed;
+    box-shadow: none; transform: none;
+  }
+  .btn-secondary {
+    background: rgba(255,255,255,0.7); color: var(--ocean-deep);
+    border: 1.5px solid rgba(14,165,233,0.2);
+  }
+  .btn-secondary:hover { background: #fff; border-color: var(--ocean); }
+
+  /* Cost summary */
+  .cost-box {
+    background: linear-gradient(135deg, rgba(14,165,233,0.08), rgba(249,115,22,0.06));
+    border: 1.5px dashed rgba(14,165,233,0.3);
+    border-radius: 14px; padding: 16px 18px; margin: 20px 0;
+  }
+  .cost-row {
+    display: flex; justify-content: space-between;
+    font-size: 14px; color: var(--ink-soft); padding: 4px 0;
+  }
+  .cost-total {
+    border-top: 1.5px solid rgba(14,165,233,0.2);
+    margin-top: 8px; padding-top: 10px;
+    font-size: 18px; font-weight: 700; color: var(--ocean-deep);
+  }
+  .cost-free { text-align: center; font-size: 16px; color: var(--leaf); font-weight: 600; padding: 6px 0; }
+
+  /* QR display */
+  .qr-box {
+    background: #fff; border-radius: 16px; padding: 20px;
+    text-align: center; margin: 16px 0;
+    border: 2px solid rgba(14,165,233,0.2);
+  }
+  .qr-box img {
+    max-width: 240px; width: 100%; height: auto;
+    border-radius: 8px;
+  }
+  .qr-box-label {
+    font-size: 14px; color: var(--ink-soft); margin-top: 10px;
+  }
+
+  /* Upload */
+  .upload-box {
+    border: 2px dashed rgba(14,165,233,0.4);
+    border-radius: 14px; padding: 24px; text-align: center;
+    background: rgba(255,255,255,0.5); cursor: pointer;
+    transition: all 0.2s;
+  }
+  .upload-box:hover { border-color: var(--sunset); background: rgba(249,115,22,0.04); }
+  .upload-box.has-file { border-style: solid; border-color: var(--leaf); background: rgba(22,163,74,0.04); }
+  .upload-icon { font-size: 36px; margin-bottom: 8px; }
+  .upload-text { font-size: 14px; color: var(--ink-soft); }
+  .upload-text strong { color: var(--ocean-deep); }
+  .upload-filename { font-size: 13px; color: var(--leaf-deep); font-weight: 600; margin-top: 6px; word-break: break-all; }
+
+  /* Notice */
+  .notice {
+    background: linear-gradient(135deg, rgba(254,243,199,0.6), rgba(254,215,170,0.4));
+    border-left: 4px solid var(--sunset);
+    border-radius: 12px; padding: 16px 18px; margin: 16px 0;
+    font-size: 14px; color: #7c2d12; line-height: 1.7;
+  }
+  .notice strong { color: #9a3412; }
+
+  /* Success */
+  .success-icon {
+    width: 88px; height: 88px; margin: 0 auto 20px;
+    background: linear-gradient(135deg, var(--sunset), var(--hibiscus));
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 48px; box-shadow: 0 12px 32px -8px rgba(239,68,68,0.5);
+    animation: bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes bounce { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+  .reg-id {
+    display: inline-block; font-family: 'Courier New', monospace;
+    font-weight: 700; color: var(--ocean-deep);
+    background: var(--sand); padding: 6px 14px; border-radius: 8px;
+    margin: 8px 0; letter-spacing: 1px;
+  }
+
+  /* Leaderboard */
+
+  /* Placeholder skeleton */
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .closed-card { text-align: center; padding: 48px 28px; }
+
+  .spinner {
+    display: inline-block; width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,0.4); border-top-color: #fff;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    margin-right: 8px; vertical-align: -3px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast notification */
+  .toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translate(-50%, -120%);
+    z-index: 9999;
+    padding: 14px 20px;
+    border-radius: 14px;
+    box-shadow: 0 10px 32px rgba(0,0,0,0.18);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    max-width: 90vw;
+    min-width: 300px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    transition: transform 0.32s cubic-bezier(0.34,1.3,0.64,1), opacity 0.3s;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .toast.show { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+  .toast-error {
+    background: linear-gradient(135deg, #FEE2E2, #FECACA);
+    color: #991B1B;
+    border: 1px solid rgba(220,38,38,0.25);
+  }
+  .toast-success {
+    background: linear-gradient(135deg, #D1FAE5, #A7F3D0);
+    color: #065F46;
+    border: 1px solid rgba(16,185,129,0.25);
+  }
+  .toast-info {
+    background: linear-gradient(135deg, #DBEAFE, #BFDBFE);
+    color: #1E40AF;
+    border: 1px solid rgba(37,99,235,0.25);
+  }
+  .toast-icon { font-size: 20px; flex-shrink: 0; line-height: 1.2; }
+  .toast-msg { font-weight: 500; }
+
+  /* Large variant — สำหรับ event สำคัญเช่นบันทึกบริจาคสำเร็จ */
+  .toast-large {
+    padding: 22px 28px;
+    font-size: 18px;
+    min-width: 420px;
+    border-radius: 18px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.22);
+    border-width: 2px;
+    font-weight: 600;
+  }
+  .toast-large .toast-icon { font-size: 32px; }
+  .toast-large .toast-msg { font-weight: 600; line-height: 1.6; }
+  @media (max-width: 540px) {
+    .toast-large { min-width: 0; max-width: calc(100vw - 24px); padding: 18px 20px; font-size: 16px; }
+  }
+
+  /* Field error shake */
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+  .field-error {
+    animation: shake 0.5s;
+    border-color: #DC2626 !important;
+    box-shadow: 0 0 0 3px rgba(220,38,38,0.15) !important;
+  }
+
+  footer { text-align: center; margin-top: 32px; font-size: 12px; color: var(--ink-soft); opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<!-- Splash overlay — แสดงระหว่างโหลด assets -->
+<div id="splash">
+  <div class="splash-spinner"></div>
+  <div class="splash-text">กำลังโหลด<br><small>Aloha Party CMMBA 34</small></div>
+</div>
+
+<!-- All background decorations removed — only Drive bg image + logos are allowed -->
+
+<div id="appRoot" class="app-root">
+<div class="container">
+  <header class="hero">
+    <div class="hero-left">
+      <div class="logo-bar" id="logoBar" style="display:none;">
+        <img id="logoKu" alt="Kasetsart University" />
+        <span class="logo-divider"></span>
+        <img id="logoCmmba" alt="KU CIVIL-MILITARY MBA" />
+      </div>
+    </div>
+    <div class="hero-right">
+      <span class="hero-logo-wrap" id="logoAlohaWrap" style="display:none;">
+        <img id="logoAloha" class="hero-logo" alt="Aloha Party CMMBA 34" />
+      </span>
+    </div>
+  </header>
+
+  <div class="hero-tag-row">
+    <div class="hero-tag">Freshmen Welcoming Ceremony</div>
+  </div>
+
+  <div class="hero-meta-row">
+    <span>📅 1–2 ส.ค. 2569</span>
+    <span>📍 Oakwood ศรีราชา</span>
+    <span>👗 Dress code: ฮาวาย</span>
+  </div>
+
+  <div class="form-column" id="layoutGrid">
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div id="stepRoot"></div>
+  </div>
+
+  <footer>🌺 CMMBA Kasetsart University 🌴</footer>
+</div>
+</div>
+
+<script>
+// ====================================================================
+//  CHECKBOX OPTIONS
+// ====================================================================
+const OPTS = {
+  diet: [
+    { value: 'ทานได้ทุกอย่าง', exclusive: true },
+    { value: 'ไม่ทานเนื้อวัว' },
+    { value: 'ไม่ทานหมู' },
+    { value: 'มังสวิรัติ' },
+    { value: 'เจ' },
+    { value: 'ฮาลาล' },
+  ],
+  allergy: [
+    { value: 'ไม่แพ้', exclusive: true },
+    { value: 'อาหารทะเล' },
+    { value: 'ถั่ว' },
+    { value: 'นม/ไข่' },
+    { value: 'แป้งสาลี/กลูเตน' },
+  ],
+  medical: [
+    { value: 'ไม่มี', exclusive: true },
+    { value: 'เบาหวาน' },
+    { value: 'ความดัน' },
+    { value: 'โรคหัวใจ' },
+    { value: 'ภูมิแพ้/หอบหืด' },
+  ],
+  medication: [
+    { value: 'ไม่มี', exclusive: true },
+    { value: 'ยาประจำตัว' },
+  ],
+};
+
+// ====================================================================
+//  STATE
+// ====================================================================
+const state = {
+  currentStep: 'welcome',
+  data: emptyData(),
+  history: [],
+  qrImage: '',
+  logoFlower: '',
+  editMode: false,
+  editingRegId: '',
+};
+
+function emptyData() {
+  return {
+    group: '',
+    title: '', firstName: '', lastName: '', nickname: '',
+    studentId: '', nationalId: '', alumniBatch: '', position: '',
+    gender: '', birthDate: '',
+    phone: '', email: '',
+    dietRestrictions: [], dietOther: '',
+    allergies: [], allergyOther: '',
+    medicalConditions: [], medicalOther: '',
+    medications: [], medicationOther: '',
+    roomType: '', bedType: '',
+    hasCompanion: false,
+    roommate: null, companion: null,
+    emergencyName: '', emergencyRelation: '', emergencyPhone: '',
+    consentPhoto: false,
+    consentPdpa: false,
+    notes: '',
+    supportPersonal: '',
+    supportBatch: '',
+    slip: null,
+  };
+}
+
+// ====================================================================
+//  UTILITIES
+// ====================================================================
+function $(sel) { return document.querySelector(sel); }
+function el(html) { const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
+function setProgress(p) { document.getElementById('progressBar').style.width = p + '%'; }
+
+function navigate(stepName, push = true) {
+  if (push && state.currentStep !== stepName) state.history.push(state.currentStep);
+
+  // Smooth transition: fade out → render → fade in
+  const root = document.getElementById('stepRoot');
+  if (root) {
+    root.classList.add('step-leaving');
+    setTimeout(() => {
+      state.currentStep = stepName;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      render();
+      // Force reflow ก่อนเอา class ออก
+      root.classList.remove('step-leaving');
+      root.classList.add('step-entering');
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          root.classList.remove('step-entering');
+        });
+      });
+    }, 180);
+  } else {
+    state.currentStep = stepName;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    render();
+  }
+}
+
+function goBack() {
+  if (state.history.length === 0) return;
+  const target = state.history.pop();
+  navigate(target, false);
+}
+
+function goToHome() {
+  // Reset ทุกอย่างกลับเริ่มต้น
+  state.data = emptyData();
+  state.history = [];
+  state.editMode = false;
+  state.editingRegId = '';
+  state.successPayload = null;
+  state.donateRegistration = null;
+  state.donateSlip = null;
+  state.donateSlipQrAmount = null;
+  state.donateSlipQrTransRef = null;
+  state.donateSuccessPayload = null;
+  navigate('welcome', false);
+}
+
+// =============== DONATION ===============
+function submitDonateLogin() {
+  const email = document.getElementById('don_email').value.trim();
+  const phone = document.getElementById('don_phone').value.trim();
+  if (!email && !phone) return alert('กรุณากรอกอีเมลหรือเบอร์โทรอย่างน้อย 1 อย่าง');
+  const btn = document.getElementById('donLoginBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> กำลังค้นหา...';
+  google.script.run
+    .withSuccessHandler(res => {
+      btn.disabled = false;
+      btn.textContent = 'ดึงข้อมูล →';
+      if (!res.ok) {
+        alert(res.message || 'ไม่พบข้อมูล');
+        return;
+      }
+      state.donateRegistration = res;
+      state.donateRegistration.email = email;
+      state.donateRegistration.phone = phone;
+      state.donateSlip = null;
+      state.donateSlipQrAmount = null;
+      state.donateSlipQrTransRef = null;
+      navigate('donateForm');
+    })
+    .withFailureHandler(err => {
+      btn.disabled = false;
+      btn.textContent = 'ดึงข้อมูล →';
+      alert('เกิดข้อผิดพลาด: ' + (err.message || err));
+    })
+    .lookupForDonation(email, phone);
+}
+
+// ========== บริจาคเงินสด (เจ้าหน้าที่) ==========
+function submitDonateCashLogin() {
+  const password = (document.getElementById('cash_password').value || '').trim();
+  const errEl = document.getElementById('cashLoginError');
+  errEl.style.display = 'none';
+  if (!password) {
+    errEl.style.display = 'block';
+    errEl.textContent = 'กรุณากรอกรหัสผ่าน';
+    return;
+  }
+
+  const btns = document.querySelectorAll('#cashLoginError ~ .button-row button, .button-row button');
+  // disable ปุ่มทุกอันชั่วคราว — ใช้ id เฉพาะแทน
+  const inputEl = document.getElementById('cash_password');
+  inputEl.disabled = true;
+
+  google.script.run
+    .withSuccessHandler(res => {
+      inputEl.disabled = false;
+      if (res && res.ok) {
+        state.cashPassword = password;   // เก็บไว้ส่งตอน submit (backend ตรวจอีกครั้ง)
+        navigate('donateCashForm');
+      } else {
+        errEl.style.display = 'block';
+        errEl.textContent = '❌ รหัสผ่านไม่ถูกต้อง';
+        inputEl.value = '';
+        inputEl.focus();
+      }
+    })
+    .withFailureHandler(err => {
+      inputEl.disabled = false;
+      errEl.style.display = 'block';
+      errEl.textContent = 'เกิดข้อผิดพลาด: ' + (err.message || err);
+    })
+    .verifyStaffPassword(password);
+}
+
+function submitDonateCash() {
+  const batchLabel = (document.getElementById('cash_batch').value || '').trim();
+  const amount = parseFloat(document.getElementById('cash_amount').value || '0');
+  const errEl = document.getElementById('cashFormError');
+  errEl.style.display = 'none';
+
+  if (!batchLabel) {
+    errEl.style.display = 'block';
+    errEl.textContent = 'กรุณาเลือกรุ่น';
+    return;
+  }
+  if (!amount || amount <= 0) {
+    errEl.style.display = 'block';
+    errEl.textContent = 'กรุณากรอกจำนวนเงินที่ถูกต้อง';
+    return;
+  }
+
+  const btn = document.getElementById('cashSubmitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> กำลังบันทึก...';
+
+  google.script.run
+    .withSuccessHandler(res => {
+      btn.disabled = false;
+      btn.innerHTML = 'บันทึก 💾';
+      if (!res.ok) {
+        errEl.style.display = 'block';
+        errEl.textContent = res.message || 'เกิดข้อผิดพลาด';
+        return;
+      }
+      showToast('บันทึกบริจาคเงินสด ' + amount.toLocaleString() + ' บาท\nในนาม ' + batchLabel + ' สำเร็จ', 'success', true);
+      // เคลียร์ฟอร์มให้บันทึกรายการต่อไปได้เลย
+      document.getElementById('cash_batch').value = '';
+      document.getElementById('cash_amount').value = '';
+      document.getElementById('cash_amount').focus();
+    })
+    .withFailureHandler(err => {
+      btn.disabled = false;
+      btn.innerHTML = 'บันทึก 💾';
+      errEl.style.display = 'block';
+      errEl.textContent = 'เกิดข้อผิดพลาด: ' + (err.message || err);
+    })
+    .submitCashDonation({
+      password: state.cashPassword || '',
+      batchLabel: batchLabel,
+      amount: amount,
+    });
+}
+
+function handleDonateSlipFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    alert('ไฟล์ใหญ่เกิน 10 MB');
+    e.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    state.donateSlip = {
+      name: file.name,
+      mimeType: file.type,
+      data: ev.target.result.split(',')[1],
+    };
+    state.donateSlipQrAmount = null;
+    state.donateSlipQrTransRef = null;
+    document.getElementById('donUploadBox').classList.add('has-file');
+    document.getElementById('donSlipFilename').textContent = '✓ ' + file.name + ' — กำลังแสกน QR...';
+
+    if (file.type.startsWith('image/')) {
+      // ใช้ scanSlipQR แต่ผูกกับ donate state
+      scanDonateSlipQR(ev.target.result);
+    } else {
+      document.getElementById('donSlipFilename').innerHTML =
+        '✓ ' + escapeHtml(file.name) +
+        '<div style="color: #6B7280; font-size: 12px; margin-top: 4px;">ℹ️ PDF ไม่สามารถสแกน QR ได้</div>';
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function scanDonateSlipQR(dataUrl) {
+  const img = new Image();
+  img.onload = async () => {
+    const file = state.donateSlip;
+    const filenameEl = document.getElementById('donSlipFilename');
+    if (!filenameEl || !file) return;
+
+    const renderResult = (amount) => {
+      const sp = parseFloat(document.getElementById('don_supportPersonal').value) || 0;
+      const sb = parseFloat(document.getElementById('don_supportBatch').value) || 0;
+      const total = sp + sb;
+      let statusHtml;
+      if (total === 0) {
+        statusHtml = '<div style="color: #6B7280; font-size: 13px; margin-top: 4px;">ℹ️ ยอดในสลิป: ' + (amount.toLocaleString()) + ' บาท (กรอกยอดบริจาคก่อน)</div>';
+      } else {
+        const diff = amount - total;
+        const TOL = 5;
+        if (Math.abs(diff) <= TOL) {
+          statusHtml = '<div style="color: #16A34A; font-size: 13px; margin-top: 4px;">✅ ยอดตรง: ' + (amount.toLocaleString()) + ' บาท</div>';
+        } else if (diff > TOL) {
+          statusHtml = '<div style="color: #D97706; font-size: 13px; margin-top: 4px;">🟢 โอนเกิน +' + (diff.toLocaleString()) + ' บาท</div>';
+        } else {
+          statusHtml = '<div style="color: #DC2626; font-size: 13px; margin-top: 4px;">❌ ยอดไม่ตรง: ' + (amount.toLocaleString()) + ' บาท (ขาด ' + (Math.abs(diff).toLocaleString()) + ')</div>';
+        }
+      }
+      filenameEl.innerHTML = '✓ ' + escapeHtml(file.name) + statusHtml;
+    };
+
+    try {
+      const sizes = [img.width, 1600, 2000, 1200, 800];
+      let foundCode = null;
+      for (const targetW of sizes) {
+        if (targetW <= 0) continue;
+        const ratio = targetW / img.width;
+        const w = Math.round(img.width * ratio);
+        const h = Math.round(img.height * ratio);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const imageData = ctx.getImageData(0, 0, w, h);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) { foundCode = code; break; }
+      }
+
+      if (foundCode) {
+        const parsed = parseEMVCo(foundCode.data);
+        state.donateSlipQrTransRef = parsed.transRef || foundCode.data.slice(0, 80);
+        if (parsed.amount !== null) {
+          state.donateSlipQrAmount = parsed.amount;
+          renderResult(parsed.amount);
+          return;
+        }
+        // Fallback OCR
+        filenameEl.innerHTML = '✓ ' + escapeHtml(file.name) +
+          '<div style="color: #6B7280; font-size: 12px; margin-top: 4px;">🔍 พบสลิป กำลังอ่านยอดด้วย OCR...</div>';
+        const ocr = await ocrSlipAmount(dataUrl);
+        if (ocr.amount > 0) {
+          state.donateSlipQrAmount = ocr.amount;
+          renderResult(ocr.amount);
+        } else {
+          filenameEl.innerHTML = '✓ ' + escapeHtml(file.name) +
+            '<div style="color: #6B7280; font-size: 12px; margin-top: 4px;">✓ พบสลิป · ระบบจะตรวจอีกครั้งหลังส่ง</div>';
+        }
+        return;
+      }
+
+      // ไม่เจอ QR → OCR ตรงๆ
+      filenameEl.innerHTML = '✓ ' + escapeHtml(file.name) +
+        '<div style="color: #6B7280; font-size: 12px; margin-top: 4px;">🔍 กำลังอ่านยอดด้วย OCR...</div>';
+      const ocr = await ocrSlipAmount(dataUrl);
+      if (ocr.amount > 0) {
+        state.donateSlipQrAmount = ocr.amount;
+        renderResult(ocr.amount);
+      } else {
+        filenameEl.innerHTML = '✓ ' + escapeHtml(file.name) +
+          '<div style="color: #6B7280; font-size: 12px; margin-top: 4px;">⚠️ อ่านยอดไม่ได้ — ระบบจะตรวจอีกครั้งหลังส่ง</div>';
+      }
+    } catch (err) {
+      console.error('QR/OCR scan error:', err);
+    }
+  };
+  img.src = dataUrl;
+}
+
+function submitDonateForm() {
+  const sp = parseFloat(document.getElementById('don_supportPersonal').value) || 0;
+  const sb = parseFloat(document.getElementById('don_supportBatch').value) || 0;
+  const total = sp + sb;
+  if (total === 0) return alert('กรุณากรอกยอดบริจาคอย่างน้อย 1 ช่อง');
+  if (!state.donateSlip || !state.donateSlip.data) return alert('กรุณาแนบสลิปการโอนเงิน');
+
+  // Pre-check QR amount
+  const qrAmount = state.donateSlipQrAmount;
+  if (qrAmount !== null && qrAmount !== undefined) {
+    const TOL = 5;
+    if (qrAmount - total < -TOL) {
+      return alert(
+        '❌ ยอดในสลิป (' + (qrAmount.toLocaleString()) + ') น้อยกว่ายอดที่ต้องโอน (' + (total.toLocaleString()) + ')\n' +
+        'ขาด ' + ((total - qrAmount).toLocaleString()) + ' บาท'
+      );
+    }
+  }
+
+  const btn = document.getElementById('donSubmitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> กำลังตรวจสลิป...';
+
+  const reg = state.donateRegistration || {};
+  const payload = {
+    email: reg.email,
+    phone: reg.phone,
+    supportPersonal: sp,
+    supportBatch: sb,
+    slip: state.donateSlip,
+    slipQrAmount: qrAmount,
+    slipQrTransRef: state.donateSlipQrTransRef,
+  };
+
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.ok) {
+        state.donateSuccessPayload = res;
+        navigate('donateSuccess', false);
+      } else {
+        alert('❌ ' + res.message);
+        btn.disabled = false;
+        btn.textContent = 'บริจาค 🌺';
+      }
+    })
+    .withFailureHandler(err => {
+      btn.disabled = false;
+      btn.textContent = 'บริจาค 🌺';
+      alert('เกิดข้อผิดพลาด: ' + (err.message || err));
+    })
+    .submitDonation(payload);
+}
+
+// ดึงชื่อรุ่นอัตโนมัติจาก group + alumniBatch
+function deriveBatchName() {
+  const g = state.data.group;
+  if (g === 'student34') return 'CMMBA รุ่น 34';
+  if (g === 'senior33')  return 'CMMBA รุ่น 33';
+  if (g === 'alumni') {
+    const b = state.data.alumniBatch || '';
+    return b ? 'CMMBA ' + (b) : 'CMMBA ศิษย์เก่า';
+  }
+  if (g === 'faculty')   return 'อาจารย์ CMMBA';
+  return 'CMMBA';
+}
+
+function calcCost() {
+  let cost = 0;
+  const group = state.data.group;
+  const roomType = state.data.roomType;
+
+  // ค่า support รวม 2 ยอด
+  const supportTotal = (parseFloat(state.data.supportPersonal) || 0)
+                     + (parseFloat(state.data.supportBatch) || 0);
+
+  // อาจารย์ + พี่33 + น้อง34 = ฟรีทั้งหมด (ยกเว้น support)
+  if (group === 'faculty' || group === 'senior33' || group === 'student34') {
+    return supportTotal;
+  }
+
+  // ศิษย์เก่า:
+  if (group === 'alumni') {
+    if (roomType === 'single') {
+      if (state.data.hasCompanion && state.data.companion) {
+        const adults = parseInt(state.data.companion.adultCount, 10) || 0;
+        const children = parseInt(state.data.companion.childCount, 10) || 0;
+        cost += adults * 1000 + children * 500;
+      } else {
+        cost += 1000;
+      }
+    }
+  }
+
+  cost += supportTotal;
+  return cost;
+}
+
+// ====================================================================
+//  CHECKBOX (PILL) CONTROLS
+// ====================================================================
+function pillGroupHtml(name, opts, selected) {
+  const sel = new Set(selected || []);
+  return `
+    <div class="pill-grid" data-pill-group="${name}">
+      ${opts.map(o => `
+        <label class="pill ${o.exclusive ? 'exclusive' : ''} ${sel.has(o.value) ? 'selected' : ''}">
+          <input type="checkbox" value="${o.value}" data-exclusive="${o.exclusive ? '1' : '0'}" ${sel.has(o.value) ? 'checked' : ''}>
+          <span class="pill-check"></span>
+          ${o.value}
+        </label>
+      `).join('')}
+    </div>
+  `;
+}
+
+function pillFieldHtml(name, label, opts, selected, otherText) {
+  return `
+    <div class="field">
+      <label>${label} <span class="req">*</span></label>
+      ${pillGroupHtml(name, opts, selected)}
+      <input type="text" id="${name}_other" placeholder="อื่นๆ ระบุ (ถ้ามี)" value="${otherText || ''}">
+    </div>
+  `;
+}
+
+function bindPillGroup(name) {
+  const wrap = document.querySelector('[data-pill-group="' + (name) + '"]');
+  if (!wrap) return;
+  wrap.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const isExclusive = cb.dataset.exclusive === '1';
+      const all = wrap.querySelectorAll('input[type=checkbox]');
+      if (cb.checked && isExclusive) {
+        // Uncheck all others
+        all.forEach(other => {
+          if (other !== cb) {
+            other.checked = false;
+            other.closest('.pill').classList.remove('selected');
+          }
+        });
+      } else if (cb.checked && !isExclusive) {
+        // Uncheck exclusive
+        all.forEach(other => {
+          if (other !== cb && other.dataset.exclusive === '1') {
+            other.checked = false;
+            other.closest('.pill').classList.remove('selected');
+          }
+        });
+      }
+      cb.closest('.pill').classList.toggle('selected', cb.checked);
+    });
+  });
+}
+
+function readPillGroup(name) {
+  const wrap = document.querySelector('[data-pill-group="' + (name) + '"]');
+  if (!wrap) return [];
+  return Array.from(wrap.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
+}
+
+function pillGroupValid(name) {
+  return readPillGroup(name).length > 0 || (document.getElementById(name + '_other')?.value.trim() || '');
+}
+
+// ====================================================================
+//  STEP DEFINITIONS
+// ====================================================================
+const steps = {
+
+  welcome: () => ({
+    progress: 5,
+    html: `
+      <div class="welcome-split">
+        <div class="welcome-split-left">
+          <div class="card welcome-card">
+            ${state.logoFlower ? `<img class="welcome-flower" src="${state.logoFlower}" alt="" />` : ''}
+            <h2 class="welcome-h">ยินดีต้อนรับ!</h2>
+            <p class="welcome-p">
+              ลงทะเบียนเข้าร่วม <strong>Aloha Party CMMBA 34</strong><br>
+              ที่โรงแรม Oakwood ศรีราชา · 1–2 สิงหาคม 2569<br>
+              <span class="welcome-deadline">⏰ ลงทะเบียนได้ถึง 30 มิถุนายน 2569</span>
+            </p>
+            <div class="notice" style="text-align: left;">
+              <strong>หมายเหตุ:</strong>
+              การสำรองห้องพักขึ้นอยู่กับจำนวนห้องที่จัดเตรียมได้
+              <br><br>
+              • <strong>พี่ 33 / น้อง 34 / อาจารย์</strong> — ฟรี<br>
+              • <strong>ศิษย์เก่า พักคู่</strong> — ฟรี (จับคู่ศิษย์เก่าด้วยกัน)<br>
+              • <strong>ศิษย์เก่า พักคนเดียว</strong> +1,000 บาท<br>
+              • <strong>ศิษย์เก่า มีผู้ติดตาม</strong> ผู้ใหญ่ +1,000 / เด็ก ≤12 ปี +500
+            </div>
+          </div>
+        </div>
+        <div class="welcome-split-right">
+          <button class="btn-mega btn-mega-register" onclick="navigate('group')">
+            <span class="btn-mega-icon">🌸</span>
+            <span class="btn-mega-label">เริ่มลงทะเบียน</span>
+            <span class="btn-mega-sub">เข้าร่วม Aloha Party</span>
+          </button>
+          <button class="btn-mega btn-mega-donate" onclick="navigate('donateMethod')">
+            <span class="btn-mega-icon">💝</span>
+            <span class="btn-mega-label">บริจาคเพิ่มเติม</span>
+            <span class="btn-mega-sub">สนับสนุนงาน</span>
+          </button>
+          <button class="btn-edit-link" style="display:none" onclick="navigate('editLogin')">
+            ✏️ แก้ไขข้อมูล
+          </button>
+        </div>
+      </div>
+    `,
+  }),
+
+  editLogin: () => ({
+    progress: 5,
+    html: `
+      <div class="card">
+        <div class="step-label">แก้ไขข้อมูล</div>
+        <h2 class="step-title">ยืนยันตัวตน</h2>
+        <p class="step-desc">
+          กรอกอีเมลและเบอร์โทรที่ใช้ลงทะเบียน — ของตัวเองหรือรูมเมทก็ได้<br>
+          <small style="color: var(--ink-soft);">⚠️ แก้ไขข้อมูลได้ <strong>1 ครั้งเท่านั้น</strong> ต่อการลงทะเบียน 1 รายการ</small>
+        </p>
+        <div class="field">
+          <label>อีเมล <span class="req">*</span></label>
+          <input id="loginEmail" type="email" placeholder="example@email.com" autocomplete="email">
+        </div>
+        <div class="field">
+          <label>เบอร์โทรศัพท์ <span class="req">*</span> <span class="hint">— ของอีเมลข้างต้น</span></label>
+          <input id="loginPhone" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="08XXXXXXXX" autocomplete="tel">
+        </div>
+        <div id="loginError" style="display:none; margin: 16px 0; padding: 12px 14px; background: rgba(220,38,38,0.08); border-radius: 12px; color: #b91c1c; font-size: 14px;"></div>
+        <div class="btn-group">
+          <button class="btn btn-secondary" onclick="navigate('welcome', false)">← ย้อนกลับ</button>
+          <button class="btn btn-primary" id="loginBtn" onclick="submitEditLogin()">เข้าสู่ระบบแก้ไข 🔓</button>
+        </div>
+      </div>
+    `,
+  }),
+
+  donateMethod: () => ({
+    progress: 5,
+    html: `
+      <div class="card">
+        <div class="step-label">บริจาคเพิ่มเติม</div>
+        <h2 class="step-title">เลือกวิธีบริจาค</h2>
+        <p class="step-desc">เลือกช่องทางการบริจาคที่ต้องการ</p>
+        <div style="display:flex; flex-direction:column; gap:14px; margin-top:8px;">
+          <button class="btn btn-primary btn-hero" style="padding:20px; font-size:17px; display:flex; align-items:center; justify-content:center; gap:10px;" onclick="navigate('donateLogin')">
+            💳 โอนเงิน
+          </button>
+          <button class="btn btn-primary btn-hero" style="padding:20px; font-size:17px; display:flex; align-items:center; justify-content:center; gap:10px; background:linear-gradient(135deg, var(--leaf), #15803d); box-shadow: 0 8px 24px -8px rgba(22,163,74,0.5);" onclick="navigate('donateCashLogin')">
+            💵 เงินสด <small style="font-size:13px; opacity:0.85;">(เจ้าหน้าที่)</small>
+          </button>
+        </div>
+        <div class="button-row" style="margin-top:24px;">
+          <button class="btn btn-secondary" onclick="navigate('welcome', false)">← ย้อนกลับ</button>
+        </div>
+        <div style="text-align:center; margin-top:14px;">
+          <button class="btn-link-edit" onclick="goToHome()">🏠 กลับสู่หน้าหลัก</button>
+        </div>
+      </div>
+    `,
+  }),
+
+  donateLogin: () => ({
+    progress: 5,
+    html: `
+      <div class="card">
+        <div class="step-label">บริจาคเพิ่มเติม · โอนเงิน</div>
+        <h2 class="step-title">ยืนยันตัวตน</h2>
+        <p class="step-desc">
+          กรอก <strong>อีเมล</strong> หรือ <strong>เบอร์โทร</strong> ที่ใช้ลงทะเบียน — อย่างใดอย่างหนึ่งก็พอ
+        </p>
+        <div class="field">
+          <label>อีเมล</label>
+          <input id="don_email" type="email" placeholder="name@example.com">
+        </div>
+        <div style="text-align:center; color:var(--ink-soft); font-size:13px; margin: 4px 0 12px;">— หรือ —</div>
+        <div class="field">
+          <label>เบอร์โทรศัพท์</label>
+          <input id="don_phone" type="tel" inputmode="numeric" placeholder="08XXXXXXXX">
+        </div>
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="navigate('donateMethod', false)">← ย้อนกลับ</button>
+          <button class="btn btn-primary" id="donLoginBtn" onclick="submitDonateLogin()">ดึงข้อมูล →</button>
+        </div>
+        <div style="text-align:center; margin-top:14px;">
+          <button class="btn-link-edit" onclick="goToHome()">🏠 กลับสู่หน้าหลัก</button>
+        </div>
+      </div>
+    `,
+  }),
+
+  donateCashLogin: () => ({
+    progress: 5,
+    html: `
+      <div class="card">
+        <div class="step-label">บริจาคเพิ่มเติม · เงินสด</div>
+        <h2 class="step-title">🔒 รหัสเจ้าหน้าที่</h2>
+        <p class="step-desc">
+          กรอกรหัสผ่านเพื่อเข้าใช้งานสำหรับเจ้าหน้าที่
+        </p>
+        <div class="field">
+          <label>รหัสผ่าน <span class="req">*</span></label>
+          <input id="cash_password" type="password" placeholder="••••" autocomplete="off"
+                 style="font-size:24px; padding:18px 18px; letter-spacing:8px; text-align:center; font-weight:700;"
+                 onkeydown="if(event.key==='Enter')submitDonateCashLogin()">
+        </div>
+        <div id="cashLoginError" style="display:none; margin: 10px 0; padding: 12px 14px; background: rgba(220,38,38,0.08); border-radius: 12px; color: #b91c1c; font-size: 14px;"></div>
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="navigate('donateMethod', false)">← ย้อนกลับ</button>
+          <button class="btn btn-primary" onclick="submitDonateCashLogin()">เข้าสู่ระบบ →</button>
+        </div>
+        <div style="text-align:center; margin-top:14px;">
+          <button class="btn-link-edit" onclick="goToHome()">🏠 กลับสู่หน้าหลัก</button>
+        </div>
+      </div>
+    `,
+  }),
+
+  donateCashForm: () => {
+    const batchOptions = [];
+    for (let i = 34; i >= 1; i--) batchOptions.push(`<option value="CMMBA รุ่น ${i}">CMMBA รุ่น ${i}</option>`);
+    batchOptions.push('<option value="อาจารย์ CMMBA">อาจารย์ CMMBA</option>');
+    return {
+      progress: 5,
+      html: `
+        <div class="card">
+          <div class="step-label">บริจาคเพิ่มเติม · เงินสด</div>
+          <h2 class="step-title">💵 บันทึกเงินสด</h2>
+          <p class="step-desc">เลือกรุ่นที่บริจาคและระบุจำนวนเงิน</p>
+          <div class="field">
+            <label>ในนามรุ่น <span class="req">*</span></label>
+            <select id="cash_batch">
+              <option value="">— เลือกรุ่น —</option>
+              ${batchOptions.join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>จำนวนเงิน (บาท) <span class="req">*</span></label>
+            <input id="cash_amount" type="number" inputmode="numeric" min="1" step="1" placeholder="0">
+          </div>
+          <div id="cashFormError" style="display:none; margin: 10px 0; padding: 12px 14px; background: rgba(220,38,38,0.08); border-radius: 12px; color: #b91c1c; font-size: 14px;"></div>
+          <div class="button-row">
+            <button class="btn btn-secondary" onclick="navigate('donateMethod', false)">← ย้อนกลับ</button>
+            <button class="btn btn-primary" id="cashSubmitBtn" onclick="submitDonateCash()">บันทึก 💾</button>
+          </div>
+          <div style="text-align:center; margin-top:14px;">
+            <button class="btn-link-edit" onclick="goToHome()">🏠 กลับสู่หน้าหลัก</button>
+          </div>
+        </div>
+      `,
+    };
+  },
+
+  donateForm: () => {
+    const reg = state.donateRegistration || {};
+    const groupLabel = reg.group === 'alumni' ? 'ศิษย์เก่า' :
+                       reg.group === 'student34' ? 'น้อง CMMBA รุ่น 34' :
+                       reg.group === 'senior33' ? 'พี่ CMMBA รุ่น 33' :
+                       reg.group === 'faculty' ? 'อาจารย์ CMMBA' : reg.group;
+    return {
+      progress: 50,
+      html: `
+        <div class="card">
+          <div class="step-label">บริจาคเพิ่มเติม</div>
+          <h2 class="step-title">รายละเอียดการบริจาค</h2>
+          <div class="notice" style="text-align: left; margin-bottom: 18px;">
+            👤 <strong>${escapeHtml(reg.fullName || '')}</strong> ${reg.nickname ? '(' + escapeHtml(reg.nickname) + ')' : ''}<br>
+            กลุ่ม: ${escapeHtml(groupLabel)} · รุ่น: ${escapeHtml(reg.batchName || '-')}
+          </div>
+
+          <p class="step-desc" style="margin-bottom: 12px;">กรอกได้ทั้ง 2 ช่อง · ใช้สลิปเดียว</p>
+
+          <div class="field">
+            <label>🙋 ในนามส่วนตัว (บาท)</label>
+            <input id="don_supportPersonal" type="number" min="0" step="100" placeholder="เช่น 500, 1000">
+          </div>
+
+          <div class="field">
+            <label>🎓 ในนามรุ่น (บาท) <span class="hint">— รวมยอดในชื่อ ${escapeHtml(reg.batchName || 'รุ่น')}</span></label>
+            <input id="don_supportBatch" type="number" min="0" step="100" placeholder="เช่น 500, 1000">
+          </div>
+
+          <div id="donCostSummary"></div>
+
+          ${qrBoxHtml()}
+
+          <div class="field" style="margin-top: 20px;">
+            <label>📎 แนบสลิปการโอนเงิน <span class="req">*</span></label>
+            <label for="don_slipFile" class="upload-box" id="donUploadBox">
+              <div class="upload-icon">📤</div>
+              <div class="upload-text">คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวาง</div>
+              <div class="upload-hint">รองรับ JPG, PNG, PDF (ไม่เกิน 10 MB)</div>
+              <div class="upload-filename" id="donSlipFilename"></div>
+            </label>
+            <input type="file" id="don_slipFile" accept="image/*,application/pdf" style="display: none;">
+          </div>
+
+          <div class="button-row">
+            <button class="btn btn-secondary" onclick="navigate('donateLogin', false)">← ย้อนกลับ</button>
+            <button class="btn btn-primary" id="donSubmitBtn" onclick="submitDonateForm()">บริจาค 🌺</button>
+          </div>
+          <div style="text-align:center; margin-top:14px;">
+            <button class="btn-link-edit" onclick="goToHome()">🏠 กลับสู่หน้าหลัก</button>
+          </div>
+        </div>
+      `,
+      onMount: () => {
+        const recalc = () => {
+          const sp = parseFloat(document.getElementById('don_supportPersonal').value) || 0;
+          const sb = parseFloat(document.getElementById('don_supportBatch').value) || 0;
+          const total = sp + sb;
+          const summary = document.getElementById('donCostSummary');
+          if (total > 0) {
+            let rows = '';
+            if (sp > 0) rows += '<div class="cost-row"><span>🙋 ในนามส่วนตัว</span><span>' + (sp.toLocaleString()) + ' บาท</span></div>';
+            if (sb > 0) rows += '<div class="cost-row"><span>🎓 ในนาม ' + (escapeHtml(reg.batchName || 'รุ่น')) + '</span><span>' + (sb.toLocaleString()) + ' บาท</span></div>';
+            summary.innerHTML = '<div class="cost-box">' + (rows) + '<div class="cost-row cost-total"><span>รวมที่ต้องโอน</span><span>' + (total.toLocaleString()) + ' บาท</span></div></div>';
+          } else {
+            summary.innerHTML = '';
+          }
+        };
+        ['don_supportPersonal', 'don_supportBatch'].forEach(id => {
+          const inp = document.getElementById(id);
+          if (inp) inp.addEventListener('input', recalc);
+        });
+
+        const slipInp = document.getElementById('don_slipFile');
+        if (slipInp) slipInp.addEventListener('change', handleDonateSlipFile);
+      },
+    };
+  },
+
+  donateSuccess: () => {
+    const sp = state.donateSuccessPayload || {};
+    return {
+      progress: 100,
+      html: `
+        <div class="card" style="text-align: center; padding: 48px 28px;">
+          <div class="success-icon">💝</div>
+          <h2 style="font-family: 'Pacifico', cursive; font-size: 38px; color: var(--ocean-deep); margin-bottom: 8px;">
+            Mahalo!
+          </h2>
+          <p style="color: var(--ink-soft); font-size: 16px; line-height: 1.7; margin-bottom: 16px;">
+            ขอบคุณสำหรับการสนับสนุน 🙏<br>
+            <strong>${escapeHtml(sp.registeredName || '')}</strong><br>
+            ยอดบริจาค: ${(sp.total || 0).toLocaleString()} บาท
+          </p>
+          <div style="margin-top: 28px;">
+            <button class="btn btn-secondary" onclick="goToHome()">🏠 กลับสู่หน้าหลัก</button>
+          </div>
+        </div>
+      `,
+    };
+  },
+
+  group: () => ({
+    progress: 12,
+    html: `
+      <div class="card">
+        <div class="step-label">ส่วนที่ 1</div>
+        <h2 class="step-title">ท่านอยู่ในกลุ่มใดของ CMMBA?</h2>
+        <p class="step-desc">เพื่อให้เราจัดเตรียมห้องพักและกิจกรรมได้เหมาะสม</p>
+        <div class="choice-list" id="groupChoices">
+          ${groupChoice('student34', '🎓', 'CMMBA รุ่น 34', 'น้องใหม่ที่กำลังเข้าร่วมงานรับน้อง')}
+          ${groupChoice('senior33',  '🌟', 'CMMBA รุ่น 33', 'พี่รุ่นที่เป็นเจ้าภาพจัดงาน')}
+          ${groupChoice('alumni',    '🤍', 'รุ่นพี่ CMMBA รุ่น 1–32', 'ศิษย์เก่าที่มาร่วมงาน')}
+          ${groupChoice('faculty',   '👔', 'อาจารย์และบุคลากร CMMBA', '')}
+        </div>
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="goBack()">← ย้อนกลับ</button>
+          <button class="btn btn-primary" id="groupNext" disabled onclick="onGroupNext()">ถัดไป →</button>
+        </div>
+      </div>
+    `,
+    onMount: () => {
+      document.querySelectorAll('input[name=group]').forEach(r => {
+        r.addEventListener('change', e => {
+          state.data.group = e.target.value;
+          document.querySelectorAll('.choice').forEach(c => c.classList.remove('selected'));
+          e.target.closest('.choice').classList.add('selected');
+          document.getElementById('groupNext').disabled = false;
+        });
+        if (r.value === state.data.group) {
+          r.checked = true;
+          r.closest('.choice').classList.add('selected');
+          document.getElementById('groupNext').disabled = false;
+        }
+      });
+    },
+  }),
+
+  // ---------- ส่วน 2: น้องรุ่น 34 ----------
+  student34: () => ({
+    progress: 35,
+    html: `
+      <div class="card">
+        <div class="step-label">ส่วนที่ 2 · น้อง CMMBA รุ่น 34</div>
+        <h2 class="step-title">ข้อมูลส่วนตัว</h2>
+        <p class="step-desc">กรุณากรอกข้อมูลให้ครบถ้วน · ทีมจัดงานจะจัดห้องพักให้</p>
+
+        <div class="section-h">👤 ข้อมูลทั่วไป</div>
+        ${fieldFullName()}
+        ${field('nickname', 'ชื่อเล่น', 'text', true)}
+        ${field('studentId', 'รหัสนักศึกษา', 'text', true)}
+        ${field('nationalId', 'เลขบัตรประชาชน', 'text', true, '13 หลัก — ใช้ทำประกันกลุ่ม')}
+        ${fieldGender()}
+        ${field('birthDate', 'วัน/เดือน/ปีเกิด', 'date', true)}
+        ${field('phone', 'เบอร์โทรศัพท์', 'tel', true, '0XXXXXXXXX')}
+        ${field('email', 'อีเมล', 'email', true, 'name@example.com')}
+
+        <div class="section-h">🍽️ อาหารและสุขภาพ</div>
+        ${pillFieldHtml('dietRestrictions', 'ข้อจำกัดด้านอาหาร', OPTS.diet, state.data.dietRestrictions, state.data.dietOther)}
+        ${pillFieldHtml('allergies', 'อาหารที่แพ้', OPTS.allergy, state.data.allergies, state.data.allergyOther)}
+        ${pillFieldHtml('medicalConditions', 'โรคประจำตัว', OPTS.medical, state.data.medicalConditions, state.data.medicalOther)}
+        ${pillFieldHtml('medications', 'ยาประจำตัว', OPTS.medication, state.data.medications, state.data.medicationOther)}
+
+        <div class="section-h">📞 ผู้ติดต่อฉุกเฉิน</div>
+        <div class="field-row">
+          ${field('emergencyName', 'ชื่อ-นามสกุล', 'text', true)}
+          ${field('emergencyRelation', 'ความสัมพันธ์', 'text', true, 'เช่น พ่อ, แม่, พี่')}
+        </div>
+        ${field('emergencyPhone', 'เบอร์โทร', 'tel', true)}
+
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="goBack()">← ย้อนกลับ</button>
+          <button class="btn btn-primary" onclick="savePersonalAndContinue('confirm')">ถัดไป →</button>
+        </div>
+      </div>
+    `,
+    onMount: () => {
+      fillFields(['title','firstName','lastName','nickname','studentId','nationalId','gender','birthDate','phone','email','emergencyName','emergencyRelation','emergencyPhone']);
+      ['dietRestrictions','allergies','medicalConditions','medications'].forEach(bindPillGroup);
+    },
+  }),
+
+  // ---------- ส่วน 3: พี่รุ่น 33 ----------
+  senior33: () => ({
+    progress: 35,
+    html: `
+      <div class="card">
+        <div class="step-label">ส่วนที่ 3 · พี่ CMMBA รุ่น 33</div>
+        <h2 class="step-title">ข้อมูลส่วนตัว</h2>
+        <p class="step-desc">ขอบคุณพี่ที่จัดงานนี้ให้น้อง 🙌</p>
+
+        <div class="section-h">👤 ข้อมูลทั่วไป</div>
+        ${fieldFullName()}
+        ${field('nickname', 'ชื่อเล่น', 'text', true)}
+        ${field('studentId', 'รหัสนักศึกษา', 'text', true)}
+        ${field('nationalId', 'เลขบัตรประชาชน', 'text', true, '13 หลัก — ใช้ทำประกันกลุ่ม')}
+        ${fieldGender()}
+        ${field('phone', 'เบอร์โทรศัพท์', 'tel', true, '0XXXXXXXXX')}
+        ${field('email', 'อีเมล', 'email', true, 'name@example.com')}
+
+        <div class="section-h">🍽️ อาหารและสุขภาพ</div>
+        ${pillFieldHtml('dietRestrictions', 'ข้อจำกัดด้านอาหาร', OPTS.diet, state.data.dietRestrictions, state.data.dietOther)}
+        ${pillFieldHtml('allergies', 'อาหารที่แพ้', OPTS.allergy, state.data.allergies, state.data.allergyOther)}
+        ${pillFieldHtml('medicalConditions', 'โรคประจำตัว', OPTS.medical, state.data.medicalConditions, state.data.medicalOther)}
+        ${pillFieldHtml('medications', 'ยาประจำตัว', OPTS.medication, state.data.medications, state.data.medicationOther)}
+
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="goBack()">← ย้อนกลับ</button>
+          <button class="btn btn-primary" onclick="savePersonalAndContinue('confirm')">ถัดไป →</button>
+        </div>
+      </div>
+    `,
+    onMount: () => {
+      fillFields(['title','firstName','lastName','nickname','studentId','nationalId','gender','phone','email']);
+      ['dietRestrictions','allergies','medicalConditions','medications'].forEach(bindPillGroup);
+    },
+  }),
+
+  // ---------- ส่วน 4: ศิษย์เก่า ----------
+  alumni: () => ({
+    progress: 30,
+    html: `
+      <div class="card">
+        <div class="step-label">ส่วนที่ 4 · ศิษย์เก่า CMMBA</div>
+        <h2 class="step-title">ข้อมูลส่วนตัว</h2>
+        <p class="step-desc">ยินดีต้อนรับกลับสู่ครอบครัว CMMBA 🌺</p>
+
+        <div class="section-h">👤 ข้อมูลทั่วไป</div>
+        ${fieldFullName()}
+        ${field('nickname', 'ชื่อเล่น', 'text', true)}
+        ${fieldAlumniBatch()}
+        ${fieldGender()}
+        ${field('phone', 'เบอร์โทรศัพท์', 'tel', true, '0XXXXXXXXX')}
+        ${field('email', 'อีเมล', 'email', true, 'name@example.com')}
+
+        <div class="section-h">🍽️ อาหารและสุขภาพ</div>
+        ${pillFieldHtml('dietRestrictions', 'ข้อจำกัดด้านอาหาร', OPTS.diet, state.data.dietRestrictions, state.data.dietOther)}
+        ${pillFieldHtml('allergies', 'อาหารที่แพ้', OPTS.allergy, state.data.allergies, state.data.allergyOther)}
+        ${pillFieldHtml('medicalConditions', 'โรคประจำตัว', OPTS.medical, state.data.medicalConditions, state.data.medicalOther)}
+        ${pillFieldHtml('medications', 'ยาประจำตัว', OPTS.medication, state.data.medications, state.data.medicationOther)}
+
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="goBack()">← ย้อนกลับ</button>
+          <button class="btn btn-primary" onclick="savePersonalAndContinue('roomType')">ถัดไป →</button>
+        </div>
+      </div>
+    `,
+    onMount: () => {
+      fillFields(['title','firstName','lastName','nickname','alumniBatch','gender','phone','email']);
+      ['dietRestrictions','allergies','medicalConditions','medications'].forEach(bindPillGroup);
+    },
+  }),
+
+  // ---------- ส่วน 5: อาจารย์ ----------
+  faculty: () => ({
+    progress: 30,
+    html: `
+      <div class="card">
+        <div class="step-label">ส่วนที่ 5 · อาจารย์และบุคลากร</div>
+        <h2 class="step-title">ข้อมูลส่วนตัว</h2>
+        <p class="step-desc">ขอบคุณที่สละเวลาร่วมงาน 🙏</p>
+
+        <div class="section-h">👤 ข้อมูลทั่วไป</div>
+        ${fieldFullName()}
+        ${field('position', 'ตำแหน่ง / สังกัด', 'text', true, 'เช่น อาจารย์ประจำ ภาควิชาบริหารธุรกิจ')}
+        ${field('phone', 'เบอร์โทรศัพท์', 'tel', true, '0XXXXXXXXX')}
+        ${field('email', 'อีเมล', 'email', true, 'name@example.com')}
+
+        <div class="section-h">🍽️ อาหารและสุขภาพ</div>
+        ${pillFieldHtml('dietRestrictions', 'ข้อจำกัดด้านอาหาร', OPTS.diet, state.data.dietRestrictions, state.data.dietOther)}
+        ${pillFieldHtml('allergies', 'อาหารที่แพ้', OPTS.allergy, state.data.allergies, state.data.allergyOther)}
+        ${pillFieldHtml('medicalConditions', 'โรคประจำตัว', OPTS.medical, state.data.medicalConditions, state.data.medicalOther)}
+        ${pillFieldHtml('medications', 'ยาประจำตัว', OPTS.medication, state.data.medications, state.data.medicationOther)}
+
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="goBack()">← ย้อนกลับ</button>
+          <button class="btn btn-primary" onclick="savePersonalAndContinue('roomType')">ถัดไป →</button>
+        </div>
+      </div>
+    `,
+    onMount: () => {
+      fillFields(['title','firstName','lastName','position','phone','email']);
+      ['dietRestrictions','allergies','medicalConditions','medications'].forEach(bindPillGroup);
+    },
+  }),
+
+  roomType: () => {
+    const group = state.data.group;
+    const isFaculty = group === 'faculty';
+    const isAlumni = group === 'alumni';
+    let twinDesc;
+    if (isFaculty) twinDesc = 'แบ่งห้องกับอีก 1 ท่าน (ใครก็ได้)';
+    else if (isAlumni) twinDesc = 'แบ่งห้องกับศิษย์เก่าด้วยกัน 2 ท่าน/ห้อง';
+    else twinDesc = 'แบ่งห้องกับเพื่อนร่วมรุ่น 2 ท่าน/ห้อง';
+    const singlePriceText = isFaculty ? 'ฟรี' : '+1,000 บาท (พักคนเดียว) · มีผู้ติดตาม → คิดตามจำนวน';
+    const singlePriceTag = isFaculty ? 'free' : 'paid';
+    return {
+      progress: 50,
+      html: `
+      <div class="card">
+        <div class="step-label">ที่พัก</div>
+        <h2 class="step-title">ท่านต้องการห้องพักแบบใด?</h2>
+        <p class="step-desc">โรงแรม Oakwood ศรีราชา · 1 คืน (1–2 ส.ค. 2569)</p>
+        <div class="choice-list" id="roomChoices">
+          ${roomChoice('twin',   '🛏️', 'พักคู่ (มาตรฐาน)', twinDesc, 'free', 'ฟรี')}
+          ${roomChoice('single', '🌙', 'พักคนเดียว หรือ มีผู้ติดตาม', 'พักคนเดียว · หรือ พากับครอบครัว/ผู้ติดตาม', singlePriceTag, singlePriceText)}
+          ${roomChoice('nostay', '🚗', 'ไม่ค้างคืน', 'เดินทางเช้า-เย็น', 'free', 'ฟรี')}
+        </div>
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="goBack()">← ย้อนกลับ</button>
+          <button class="btn btn-primary" id="roomNext" disabled onclick="onRoomTypeNext()">ถัดไป →</button>
+        </div>
+      </div>
+    `,
+    onMount: () => {
+      document.querySelectorAll('input[name=roomType]').forEach(r => {
+        r.addEventListener('change', e => {
+          state.data.roomType = e.target.value;
+          document.querySelectorAll('#roomChoices .choice').forEach(c => c.classList.remove('selected'));
+          e.target.closest('.choice').classList.add('selected');
+          document.getElementById('roomNext').disabled = false;
+        });
+        if (r.value === state.data.roomType) {
+          r.checked = true;
+          r.closest('.choice').classList.add('selected');
+          document.getElementById('roomNext').disabled = false;
+        }
+      });
+    },
+    };
+  },
+
+  roommate: () => {
+    const isFaculty = state.data.group === 'faculty';
+    const noticeText = isFaculty
+      ? '⚠️ <strong>หากเพื่อนรูมเมทของท่านได้กรอกแบบฟอร์มนี้และระบุชื่อท่านเป็นรูมเมทแล้ว ไม่ต้องลงทะเบียนซ้ำ</strong> — กรุณาตรวจสอบกันก่อนกรอก'
+      : '⚠️ <strong>รูมเมทของท่านต้องเป็นศิษย์เก่า CMMBA ด้วยกัน</strong> · หากเพื่อนรูมเมทได้กรอกแบบฟอร์มและระบุชื่อท่านเป็นรูมเมทแล้ว ไม่ต้องลงทะเบียนซ้ำ';
+    return {
+      progress: 60,
+      html: `
+      <div class="card">
+        <div class="step-label">รูมเมท</div>
+        <h2 class="step-title">ข้อมูลเพื่อนที่จะนอนห้องเดียวกัน</h2>
+        <p class="step-desc">กรอกข้อมูลของเพื่อนที่จะนอนห้องเดียวกับท่าน</p>
+
+        <div class="notice">
+          ${noticeText}
+        </div>
+
+        <div class="section-h">👤 ข้อมูลรูมเมท</div>
+        <div class="field-row">
+          ${field('rm_firstName', 'ชื่อ', 'text', true)}
+          ${field('rm_lastName', 'นามสกุล', 'text', true)}
+        </div>
+        ${field('rm_nickname', 'ชื่อเล่น', 'text', true)}
+        ${field('rm_idOrBatch', 'รหัสนักศึกษา หรือ CMMBA รุ่นที่', 'text', true, 'เช่น 6815xxxxxx หรือ รุ่น 28')}
+        ${fieldGender('rm_gender')}
+        ${field('rm_phone', 'เบอร์โทรศัพท์', 'tel', true)}
+        ${field('rm_email', 'อีเมล', 'email', false)}
+
+        <div class="section-h">🍽️ อาหารและสุขภาพรูมเมท</div>
+        ${pillFieldHtml('rm_dietRestrictions', 'ข้อจำกัดด้านอาหาร', OPTS.diet,
+          state.data.roommate?.dietRestrictions, state.data.roommate?.dietOther)}
+        ${pillFieldHtml('rm_allergies', 'อาหารที่แพ้', OPTS.allergy,
+          state.data.roommate?.allergies, state.data.roommate?.allergyOther)}
+        ${pillFieldHtml('rm_medicalConditions', 'โรคประจำตัว', OPTS.medical,
+          state.data.roommate?.medicalConditions, state.data.roommate?.medicalOther)}
+        ${pillFieldHtml('rm_medications', 'ยาประจำตัว', OPTS.medication,
+          state.data.roommate?.medications, state.data.roommate?.medicationOther)}
+
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="goBack()">← ย้อนกลับ</button>
+          <button class="btn btn-primary" onclick="saveRoommateAndContinue()">ถัดไป →</button>
+        </div>
+      </div>
+    `,
+    onMount: () => {
+      if (state.data.roommate) {
+        ['firstName','lastName','nickname','idOrBatch','gender','phone','email'].forEach(k => {
+          const v = state.data.roommate[k];
+          const inp = document.getElementById('rm_' + k);
+          if (inp && v) inp.value = v;
+        });
+      }
+      ['rm_dietRestrictions','rm_allergies','rm_medicalConditions','rm_medications'].forEach(bindPillGroup);
+    },
+    };
+  },
+
+  hasCompanion: () => ({
+    progress: 60,
+    html: `
+      <div class="card">
+        <div class="step-label">ผู้ติดตาม</div>
+        <h2 class="step-title">มีผู้ติดตามเข้าร่วมกิจกรรมหรือไม่?</h2>
+        <p class="step-desc">
+          ${state.data.group === 'faculty'
+            ? 'อาจารย์: ผู้ติดตามเข้าร่วมได้ฟรี · ผู้ติดตาม = คู่สมรส, ครอบครัว หรือบุคคลภายนอก'
+            : 'ผู้ติดตาม = บุคคลที่ไม่ใช่ศิษย์เก่า เช่น คู่สมรส, ครอบครัว · มีค่าใช้จ่ายเพิ่ม +1,000 บาท/ท่าน'}
+        </p>
+        <div class="choice-list" id="compChoices">
+          <label class="choice">
+            <input type="radio" name="hasComp" value="yes" ${state.data.hasCompanion ? 'checked' : ''}>
+            <div class="choice-emoji">👨‍👩‍👧</div>
+            <div class="choice-body">
+              <div class="choice-title">มีผู้ติดตาม</div>
+              <div class="choice-desc">${state.data.group === 'faculty' ? 'ฟรี' : '+1,000 บาท/ท่าน'}</div>
+            </div>
+          </label>
+          <label class="choice">
+            <input type="radio" name="hasComp" value="no">
+            <div class="choice-emoji">🙋</div>
+            <div class="choice-body">
+              <div class="choice-title">ไม่มีผู้ติดตาม</div>
+              <div class="choice-desc">มาคนเดียว</div>
+            </div>
+          </label>
+        </div>
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="goBack()">← ย้อนกลับ</button>
+          <button class="btn btn-primary" id="compNext" disabled onclick="onHasCompanionNext()">ถัดไป →</button>
+        </div>
+      </div>
+    `,
+    onMount: () => {
+      document.querySelectorAll('input[name=hasComp]').forEach(r => {
+        r.addEventListener('change', e => {
+          document.querySelectorAll('#compChoices .choice').forEach(c => c.classList.remove('selected'));
+          e.target.closest('.choice').classList.add('selected');
+          document.getElementById('compNext').disabled = false;
+        });
+        if (r.checked) r.closest('.choice').classList.add('selected');
+      });
+      if (document.querySelector('input[name=hasComp]:checked')) {
+        document.getElementById('compNext').disabled = false;
+      }
+    },
+  }),
+
+  companion: () => {
+    const isFaculty = state.data.group === 'faculty';
+    return {
+      progress: 70,
+      html: `
+      <div class="card">
+        <div class="step-label">ผู้ติดตาม</div>
+        <h2 class="step-title">รายละเอียดผู้ติดตาม</h2>
+        <p class="step-desc">
+          ${isFaculty
+            ? 'ผู้ติดตามอาจารย์เข้าร่วมฟรี'
+            : 'ผู้ใหญ่ +1,000 บาท · เด็กอายุไม่เกิน 12 ปี +500 บาท'}
+        </p>
+
+        <div class="notice" style="margin-bottom: 18px;">
+          ⚠️ <strong>ข้อจำกัดของห้องพัก:</strong> 1 ห้อง รองรับผู้ใหญ่ 2 คน + เด็ก ≤ 12 ปี ไม่เกิน 2 คน
+          <br><small>ผู้ลงทะเบียนนับเป็นผู้ใหญ่ 1 → ผู้ติดตามเพิ่มได้สูงสุด <strong>ผู้ใหญ่ 1 คน + เด็ก 2 คน</strong></small>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>ผู้ใหญ่ (อายุ > 12 ปี) <span class="req">*</span></label>
+            <select id="comp_adultCount" onchange="renderCompanionList()">
+              <option value="0">0 คน</option>
+              <option value="1">1 คน</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>เด็ก (อายุ ≤ 12 ปี) <span class="req">*</span></label>
+            <select id="comp_childCount" onchange="renderCompanionList()">
+              <option value="0">0 คน</option>
+              <option value="1">1 คน</option>
+              <option value="2">2 คน</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="companionList" style="margin-top: 16px;"></div>
+
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="goBack()">← ย้อนกลับ</button>
+          <button class="btn btn-primary" onclick="saveCompanionAndContinue()">ถัดไป →</button>
+        </div>
+      </div>
+    `,
+    onMount: () => {
+      const c = state.data.companion || {};
+      if (c.adultCount != null) document.getElementById('comp_adultCount').value = c.adultCount;
+      if (c.childCount != null) document.getElementById('comp_childCount').value = c.childCount;
+      renderCompanionList();
+    },
+    };
+  },
+
+  bedType: () => ({
+    progress: 80,
+    html: `
+      <div class="card">
+        <div class="step-label">ที่พัก</div>
+        <h2 class="step-title">ต้องการเตียงแบบใด?</h2>
+        <p class="step-desc">เนื่องจากมีผู้พักร่วมห้อง 2 ท่าน</p>
+        <div class="choice-list" id="bedChoices">
+          ${bedChoice('king', '🛏️', 'เตียงใหญ่', '1 เตียงใหญ่ (King/Queen Size)')}
+          ${bedChoice('twin', '🛏️🛏️', 'เตียงแยก', '2 เตียงเดี่ยว (Twin Beds)')}
+        </div>
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="goBack()">← ย้อนกลับ</button>
+          <button class="btn btn-primary" id="bedNext" disabled onclick="onBedTypeNext()">ถัดไป →</button>
+        </div>
+      </div>
+    `,
+    onMount: () => {
+      document.querySelectorAll('input[name=bedType]').forEach(r => {
+        r.addEventListener('change', e => {
+          state.data.bedType = e.target.value;
+          document.querySelectorAll('#bedChoices .choice').forEach(c => c.classList.remove('selected'));
+          e.target.closest('.choice').classList.add('selected');
+          document.getElementById('bedNext').disabled = false;
+        });
+        if (r.value === state.data.bedType) {
+          r.checked = true;
+          r.closest('.choice').classList.add('selected');
+          document.getElementById('bedNext').disabled = false;
+        }
+      });
+    },
+  }),
+
+  confirm: () => {
+    const cost = calcCost();
+    const needSlip = cost > 0;
+    return {
+      progress: 95,
+      html: `
+        <div class="card">
+          <div class="step-label">สุดท้ายแล้ว</div>
+          <h2 class="step-title">ยืนยันการลงทะเบียน</h2>
+          <p class="step-desc">ตรวจสอบข้อมูลและยืนยัน 🌺</p>
+
+          <div class="section-h">💝 ร่วมสนับสนุนงาน <small style="font-weight:400;font-size:13px;color:var(--ink-soft);">(ไม่บังคับ)</small></div>
+          <p class="step-desc" style="margin-bottom: 12px;">กรอกได้ทั้ง 2 ช่อง · ยอดรวมจะเพิ่มในยอดที่ต้องโอน · ใช้สลิปเดียว</p>
+
+          <div class="field">
+            <label>🙋 ในนามส่วนตัว (บาท)</label>
+            <input id="supportPersonal" type="number" min="0" step="100" placeholder="เช่น 500, 1000">
+          </div>
+
+          <div class="field">
+            <label>🎓 ในนามรุ่น (บาท) <span class="hint">— รวมยอดในชื่อรุ่นของท่าน</span></label>
+            <input id="supportBatch" type="number" min="0" step="100" placeholder="เช่น 500, 1000">
+          </div>
+
+          <div class="section-h">📸 การใช้ภาพถ่าย</div>
+          <div class="notice" style="text-align: left; font-size: 13px; line-height: 1.6; margin-bottom: 12px;">
+            ภาพถ่าย/วิดีโอจากกิจกรรมจะถูกใช้เพื่อ <strong>ประชาสัมพันธ์ CMMBA</strong> เช่น เว็บไซต์ Facebook ของหลักสูตร หรือสื่อภายในเท่านั้น
+          </div>
+          <label class="choice" style="margin-bottom: 16px;">
+            <input type="checkbox" id="consentPhoto" ${state.data.consentPhoto ? 'checked' : ''}>
+            <div class="choice-body">
+              <div class="choice-title" style="font-size: 14px;">ยินยอมให้ใช้ภาพถ่าย/วิดีโอในกิจกรรมเพื่อประชาสัมพันธ์ CMMBA <span class="req">*</span></div>
+            </div>
+          </label>
+
+          ${(state.data.group === 'student34' || state.data.group === 'senior33') ? `
+            <div class="section-h">🔒 ความยินยอมข้อมูลส่วนบุคคล (PDPA)</div>
+            <div class="notice" style="text-align: left; font-size: 13px; line-height: 1.6; margin-bottom: 12px;">
+              <strong>เลขบัตรประชาชน</strong> ที่ท่านกรอก จะถูกใช้เพื่อ <strong>ทำประกันการเดินทางแบบกลุ่ม</strong> เท่านั้น
+              · ข้อมูลจะถูกเก็บอย่างปลอดภัย เข้าถึงเฉพาะทีมจัดงาน
+              · จะถูกลบหลังจบงานภายใน 90 วัน
+              · ไม่มีการเผยแพร่ ส่งต่อ หรือใช้เพื่อวัตถุประสงค์อื่น
+            </div>
+            <label class="choice" style="margin-bottom: 16px;">
+              <input type="checkbox" id="consentPdpa" ${state.data.consentPdpa ? 'checked' : ''}>
+              <div class="choice-body">
+                <div class="choice-title" style="font-size: 14px;">ยินยอมให้ใช้เลขบัตรประชาชนเพื่อทำประกันการเดินทางแบบกลุ่ม <span class="req">*</span></div>
+              </div>
+            </label>
+          ` : ''}
+
+          ${fieldTextarea('notes', 'หมายเหตุเพิ่มเติม / ข้อเสนอแนะ', 'ไม่บังคับ', false)}
+
+          <div class="section-h">💰 สรุปค่าใช้จ่าย</div>
+          <div id="costSummary">${costSummaryHtml(cost)}</div>
+
+          <div id="paymentSection" style="${needSlip ? '' : 'display: none;'}">
+            <div class="section-h">📱 QR สำหรับโอนเงิน</div>
+            <div id="qrSection">${qrBoxHtml()}</div>
+
+            <div class="section-h">📎 หลักฐานการชำระเงิน</div>
+            <label for="slipFile" class="upload-box" id="uploadBox">
+              <div class="upload-icon">🧾</div>
+              <div class="upload-text">
+                <strong>คลิกเพื่อแนบสลิปการโอน</strong><br>
+                <span style="font-size: 12px;">รองรับไฟล์ JPG, PNG, PDF (ไม่เกิน 10 MB)</span>
+              </div>
+              <div class="upload-filename" id="slipFilename"></div>
+            </label>
+            <input type="file" id="slipFile" accept="image/*,application/pdf" style="display: none;">
+          </div>
+
+          <div class="button-row">
+            <button class="btn btn-secondary" onclick="goBack()">← ย้อนกลับ</button>
+            <button class="btn btn-primary" id="submitBtn" onclick="submitForm()">${state.editMode ? 'บันทึกการแก้ไข ✏️' : 'ลงทะเบียน 🌺'}</button>
+          </div>
+        </div>
+      `,
+      onMount: () => {
+        fillFields(['notes', 'supportPersonal', 'supportBatch']);
+
+        // Update cost summary on change (debounced) — ไม่ re-render เพื่อไม่ให้ input หาย focus
+        const onSupportChange = () => {
+          state.data.supportPersonal = readField('supportPersonal');
+          state.data.supportBatch = readField('supportBatch');
+          clearTimeout(window._supportTimer);
+          window._supportTimer = setTimeout(() => {
+            const newCost = calcCost();
+            const summaryEl = document.getElementById('costSummary');
+            if (summaryEl) summaryEl.innerHTML = costSummaryHtml(newCost);
+            const paymentSec = document.getElementById('paymentSection');
+            if (paymentSec) {
+              paymentSec.style.display = newCost > 0 ? '' : 'none';
+            }
+          }, 300);
+        };
+
+        ['supportPersonal', 'supportBatch'].forEach(id => {
+          const inp = document.getElementById(id);
+          if (inp) inp.addEventListener('input', onSupportChange);
+        });
+
+        const slipInput = document.getElementById('slipFile');
+        if (slipInput) {
+          slipInput.addEventListener('change', handleSlipFile);
+          if (state.data.slip && state.data.slip.name) {
+            document.getElementById('uploadBox').classList.add('has-file');
+            document.getElementById('slipFilename').textContent = '✓ ' + state.data.slip.name;
+          }
+        }
+      },
+    };
+  },
+
+  success: () => {
+    const sp = state.successPayload || {};
+    const regId = sp.regId || '-';
+    const cost = sp.cost || 0;
+    const ocrAmount = sp.ocrAmount || 0;
+    const ocrStatus = sp.ocrStatus || '';
+    const isEdit = !!sp.isEdit;
+    return {
+    progress: 100,
+    html: `
+      <div class="card" style="text-align: center; padding: 48px 28px;">
+        <div class="success-icon">${isEdit ? '✏️' : '🌺'}</div>
+        <h2 style="font-family: 'Pacifico', cursive; font-size: 38px; color: var(--ocean-deep); margin-bottom: 8px;">
+          ${isEdit ? 'Saved!' : 'Mahalo!'}
+        </h2>
+        <p style="color: var(--ink-soft); font-size: 16px; line-height: 1.7; margin-bottom: 16px;">
+          ${isEdit ? 'แก้ไขข้อมูลสำเร็จแล้ว 🎉' : 'ลงทะเบียนสำเร็จแล้ว 🎉'}<br>
+          แล้วเจอกันที่ศรีราชา 1–2 สิงหาคม 2569
+        </p>
+        <div>
+          <small style="color: var(--ink-soft);">หมายเลขลงทะเบียน</small><br>
+          <span class="reg-id">${regId}</span>
+        </div>
+        ${isEdit ? `
+          <div style="margin-top: 16px; padding: 12px 14px; background: rgba(249,115,22,0.08); border-radius: 12px; color: #9a3412; font-size: 13px;">
+            ⚠️ คุณได้ใช้สิทธิ์แก้ไขแล้ว 1 ครั้ง — ไม่สามารถแก้ไขเพิ่มเติมผ่านระบบ
+          </div>
+        ` : ''}
+        ${cost > 0 ? (ocrAmount > 0 ? `
+          <div style="margin-top: 16px; padding: 14px; background: rgba(22,163,74,0.08); border-radius: 12px; color: var(--leaf-deep); font-size: 14px; text-align: left;">
+            ✅ ตรวจสลิปสำเร็จ — ระบบอ่านยอด <strong>${ocrAmount.toLocaleString()} บาท</strong><br>
+            <small>ทีมงานจะตรวจอีกครั้งและขึ้น Top 10 ภายหลัง</small>
+          </div>
+        ` : `
+          <div class="notice" style="text-align: left; margin-top: 24px;">
+            <strong>💰 ค่าใช้จ่าย: ${cost.toLocaleString()} บาท</strong><br>
+            กรุณาโอนเงินตามจำนวนข้างต้น และส่งหลักฐานการโอนหากยังไม่ได้แนบ
+          </div>
+          ${ocrStatus && ocrStatus !== 'ไม่มีสลิป' ? `
+            <div style="margin-top: 16px; padding: 14px; background: rgba(249,115,22,0.08); border-radius: 12px; color: #9a3412; font-size: 14px; text-align: left;">
+              ⚠️ ระบบอ่านสลิปไม่สำเร็จ (${escapeHtml(ocrStatus)}) — ทีมงานจะตรวจสอบเอง
+            </div>
+          ` : ''}
+        `) : `
+          <div style="margin-top: 20px; padding: 14px; background: rgba(22,163,74,0.08); border-radius: 12px; color: var(--leaf-deep); font-size: 14px;">
+            ✅ ไม่มีค่าใช้จ่าย — ยืนยันการจองเรียบร้อยแล้ว
+          </div>
+        `}
+        <p style="margin-top: 24px; color: var(--ink-soft); font-size: 13px;">
+          Dress code: 👗 ฮาวาย · เตรียมตัวให้พร้อม! 🌴
+        </p>
+        <div style="margin-top: 28px;">
+          <button class="btn btn-secondary" onclick="goToHome()">🏠 กลับสู่หน้าหลัก</button>
+        </div>
+      </div>
+    `,
+    };
+  },
+
+  closed: () => ({
+    progress: 0,
+    html: `
+      <div class="card closed-card">
+        <div style="font-size: 64px; margin-bottom: 20px;">🌅</div>
+        <h2 style="color: var(--ocean-deep); margin-bottom: 12px;">ปิดรับลงทะเบียนแล้ว</h2>
+        <p style="color: var(--ink-soft); line-height: 1.7;">
+          ขอขอบคุณทุกท่านที่ให้ความสนใจ<br>
+          การลงทะเบียนปิดเมื่อวันที่ 30 มิถุนายน 2569
+        </p>
+      </div>
+    `,
+  }),
+};
+
+// ====================================================================
+//  HTML HELPERS
+// ====================================================================
+function field(id, label, type, required, placeholder = '') {
+  return `
+    <div class="field">
+      <label>${label} ${required ? '<span class="req">*</span>' : '<span class="hint">(ไม่บังคับ)</span>'}</label>
+      <input id="${id}" type="${type}" ${required ? 'required' : ''} placeholder="${placeholder}">
+    </div>
+  `;
+}
+
+function fieldTextarea(id, label, placeholder, required) {
+  return `
+    <div class="field">
+      <label>${label} ${required ? '<span class="req">*</span>' : '<span class="hint">(ไม่บังคับ)</span>'}</label>
+      <textarea id="${id}" placeholder="${placeholder}"></textarea>
+    </div>
+  `;
+}
+
+function fieldFullName() {
+  const cur = state.data.title || '';
+  const PRESET = ['นาย', 'นาง', 'นางสาว', 'ดร.'];
+  const isOther = cur && !PRESET.includes(cur);
+  return `
+    <div class="field" style="max-width: 200px;">
+      <label>คำนำหน้า <span class="req">*</span></label>
+      <select id="title" onchange="onTitleChange()">
+        <option value="">-- เลือก --</option>
+        <option value="นาย"     ${cur === 'นาย' ? 'selected' : ''}>นาย</option>
+        <option value="นาง"     ${cur === 'นาง' ? 'selected' : ''}>นาง</option>
+        <option value="นางสาว"  ${cur === 'นางสาว' ? 'selected' : ''}>นางสาว</option>
+        <option value="ดร."     ${cur === 'ดร.' ? 'selected' : ''}>ดร.</option>
+        <option value="__other" ${isOther ? 'selected' : ''}>อื่นๆ</option>
+      </select>
+      <input type="text" id="titleOther" placeholder="ระบุคำนำหน้า"
+        value="${isOther ? escapeHtml(cur) : ''}"
+        style="margin-top: 8px; ${isOther ? '' : 'display: none;'}"
+        oninput="state.data.title = this.value.trim()">
+    </div>
+    <div class="field-row">
+      ${field('firstName', 'ชื่อ', 'text', true)}
+      ${field('lastName', 'นามสกุล', 'text', true)}
+    </div>
+  `;
+}
+
+function onTitleChange() {
+  const sel = document.getElementById('title');
+  const other = document.getElementById('titleOther');
+  if (!sel || !other) return;
+  if (sel.value === '__other') {
+    other.style.display = '';
+    other.focus();
+    state.data.title = other.value.trim();
+  } else {
+    other.style.display = 'none';
+    other.value = '';
+    state.data.title = sel.value;
+  }
+}
+
+function fieldGender(id = 'gender') {
+  return `
+    <div class="field">
+      <label>เพศ <span class="req">*</span></label>
+      <select id="${id}">
+        <option value="">-- เลือก --</option>
+        <option value="ชาย">ชาย</option>
+        <option value="หญิง">หญิง</option>
+        <option value="ไม่ระบุ">ไม่ระบุ</option>
+      </select>
+    </div>
+  `;
+}
+
+function fieldAlumniBatch() {
+  let opts = '<option value="">-- เลือกรุ่น --</option>';
+  for (let i = 1; i <= 32; i++) opts += '<option value="' + (i) + '">CMMBA รุ่น ' + (i) + '</option>';
+  return `
+    <div class="field">
+      <label>CMMBA รุ่นที่จบ <span class="req">*</span></label>
+      <select id="alumniBatch">${opts}</select>
+    </div>
+  `;
+}
+
+function groupChoice(value, emoji, title, desc) {
+  return `
+    <label class="choice">
+      <input type="radio" name="group" value="${value}">
+      <div class="choice-emoji">${emoji}</div>
+      <div class="choice-body">
+        <div class="choice-title">${title}</div>
+        ${desc ? `<div class="choice-desc">${desc}</div>` : ''}
+      </div>
+    </label>
+  `;
+}
+
+function roomChoice(value, emoji, title, desc, priceClass, priceLabel) {
+  return `
+    <label class="choice">
+      <input type="radio" name="roomType" value="${value}">
+      <div class="choice-emoji">${emoji}</div>
+      <div class="choice-body">
+        <div class="choice-title">${title}</div>
+        <div class="choice-desc">${desc}</div>
+      </div>
+      <div class="choice-price ${priceClass}">${priceLabel}</div>
+    </label>
+  `;
+}
+
+function bedChoice(value, emoji, title, desc) {
+  return `
+    <label class="choice">
+      <input type="radio" name="bedType" value="${value}">
+      <div class="choice-emoji">${emoji}</div>
+      <div class="choice-body">
+        <div class="choice-title">${title}</div>
+        <div class="choice-desc">${desc}</div>
+      </div>
+    </label>
+  `;
+}
+
+function costSummaryHtml(cost) {
+  let rows = '';
+  const group = state.data.group;
+  const roomType = state.data.roomType;
+  const hasComp = state.data.hasCompanion && state.data.companion;
+  const isAlumni = group === 'alumni';
+
+  // ค่าห้อง single (เฉพาะศิษย์เก่า + single + ไม่มีผู้ติดตาม)
+  if (isAlumni && roomType === 'single' && !hasComp) {
+    rows += `<div class="cost-row"><span>🌙 พักคนเดียว</span><span>1,000 บาท</span></div>`;
+  }
+  // ผู้ติดตาม
+  if (isAlumni && roomType === 'single' && hasComp) {
+    const adults = parseInt(state.data.companion.adultCount, 10) || 0;
+    const list = state.data.companion.list || [];
+    const childExtra = list.filter(function(p){return p.type === 'เด็ก' && p.extraBed;}).length;
+    const childFree = list.filter(function(p){return p.type === 'เด็ก' && !p.extraBed;}).length;
+    if (adults > 0) {
+      rows += '<div class="cost-row"><span>👤 ผู้ติดตามผู้ใหญ่ ' + (adults) + ' ท่าน × 1,000</span><span>' + ((adults * 1000).toLocaleString()) + ' บาท</span></div>';
+    }
+    if (childExtra > 0) {
+      rows += '<div class="cost-row"><span>🛏️ เด็กเตียงเสริม ' + (childExtra) + ' ท่าน × 1,000</span><span>' + ((childExtra * 1000).toLocaleString()) + ' บาท</span></div>';
+    }
+    if (childFree > 0) {
+      rows += '<div class="cost-row"><span>🛌 เด็กนอนกับผู้ปกครอง ' + (childFree) + ' ท่าน</span><span style="color: var(--leaf);">ฟรี</span></div>';
+    }
+  }
+
+  const supportPersonal = parseFloat(state.data.supportPersonal) || 0;
+  const supportBatch = parseFloat(state.data.supportBatch) || 0;
+  if (supportPersonal > 0) {
+    rows += '<div class="cost-row"><span>🙋 สนับสนุนในนามส่วนตัว</span><span>' + (supportPersonal.toLocaleString()) + ' บาท</span></div>';
+  }
+  if (supportBatch > 0) {
+    const batchName = deriveBatchName();
+    rows += '<div class="cost-row"><span>🎓 สนับสนุนในนาม ' + (batchName) + '</span><span>' + (supportBatch.toLocaleString()) + ' บาท</span></div>';
+  }
+
+  if (cost === 0) {
+    return `<div class="cost-box"><div class="cost-free">🎉 ไม่มีค่าใช้จ่าย — ฟรี!</div></div>`;
+  }
+  return `
+    <div class="cost-box">
+      ${rows}
+      <div class="cost-row cost-total"><span>รวมทั้งสิ้น</span><span>${cost.toLocaleString()} บาท</span></div>
+    </div>
+  `;
+}
+
+function qrBoxHtml() {
+  if (state.qrImage) {
+    return `
+      <div class="qr-box">
+        <img src="${state.qrImage}" alt="QR Code สำหรับโอนเงิน">
+        <div class="qr-box-label">สแกน QR เพื่อโอนเงิน</div>
+      </div>
+    `;
+  }
+  return `
+    <div class="notice">
+      💳 <strong>การชำระเงิน</strong><br>
+      ทีมงานจะติดต่อแจ้งเลขบัญชีให้ทาง LINE หรือเบอร์ที่ลงทะเบียน
+    </div>
+  `;
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => (
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+  ));
+}
+
+// ====================================================================
+//  POPULATE & READ
+// ====================================================================
+function fillFields(keys) {
+  keys.forEach(k => {
+    const inp = document.getElementById(k);
+    if (inp && state.data[k]) inp.value = state.data[k];
+  });
+}
+function readField(id) {
+  const e = document.getElementById(id);
+  return e ? e.value.trim() : '';
+}
+
+// ====================================================================
+//  STEP TRANSITIONS
+// ====================================================================
+function onGroupNext() {
+  if (state.data.group) navigate(state.data.group);
+}
+
+function savePersonalAndContinue(nextStep) {
+  ['firstName','lastName','nickname','studentId','nationalId','alumniBatch','position',
+   'gender','birthDate','phone','email',
+   'emergencyName','emergencyRelation','emergencyPhone'].forEach(f => {
+    const inp = document.getElementById(f);
+    if (inp) state.data[f] = inp.value.trim();
+  });
+  // compute fullName
+  state.data.fullName = (state.data.firstName + ' ' + state.data.lastName).trim();
+
+  // Title: ถ้าเลือก "อื่นๆ" → อ่านจาก titleOther; อื่น → อ่านจาก select
+  const titleSel = document.getElementById('title');
+  if (titleSel) {
+    if (titleSel.value === '__other') {
+      state.data.title = (document.getElementById('titleOther')?.value || '').trim();
+    } else {
+      state.data.title = titleSel.value;
+    }
+  }
+
+  // Pill groups
+  state.data.dietRestrictions = readPillGroup('dietRestrictions');
+  state.data.dietOther = readField('dietRestrictions_other');
+  state.data.allergies = readPillGroup('allergies');
+  state.data.allergyOther = readField('allergies_other');
+  state.data.medicalConditions = readPillGroup('medicalConditions');
+  state.data.medicalOther = readField('medicalConditions_other');
+  state.data.medications = readPillGroup('medications');
+  state.data.medicationOther = readField('medications_other');
+
+  // Validate
+  if (!state.data.title) return alertField('title', 'กรุณาเลือกคำนำหน้า');
+  if (!state.data.firstName) return alertField('firstName', 'กรุณากรอกชื่อ');
+  if (!state.data.lastName) return alertField('lastName', 'กรุณากรอกนามสกุล');
+  if (!state.data.phone) return alertField('phone', 'กรุณากรอกเบอร์โทรศัพท์');
+  state.data.phone = state.data.phone.replace(/[\s-]/g, '');
+  if (!/^0\d{9}$/.test(state.data.phone)) return alertField('phone', 'รูปแบบเบอร์โทรไม่ถูกต้อง');
+  if (!state.data.email) return alertField('email', 'กรุณากรอกอีเมล');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.data.email)) {
+    return alertField('email', 'รูปแบบอีเมลไม่ถูกต้อง');
+  }
+
+  if (state.data.group === 'student34') {
+    if (!state.data.nickname) return alertField('nickname', 'กรุณากรอกชื่อเล่น');
+    if (!state.data.studentId) return alertField('studentId', 'กรุณากรอกรหัสนักศึกษา');
+    if (!state.data.nationalId) return alertField('nationalId', 'กรุณากรอกเลขบัตรประชาชน');
+    state.data.nationalId = state.data.nationalId.replace(/[\s-]/g, '');
+    if (!/^\d{13}$/.test(state.data.nationalId)) return alertField('nationalId', 'เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก');
+    if (!state.data.gender) return alertField('gender', 'กรุณาเลือกเพศ');
+    if (!state.data.birthDate) return alertField('birthDate', 'กรุณากรอกวันเกิด');
+    if (!state.data.emergencyName) return alertField('emergencyName', 'กรุณากรอกชื่อผู้ติดต่อฉุกเฉิน');
+    if (!state.data.emergencyRelation) return alertField('emergencyRelation', 'กรุณากรอกความสัมพันธ์');
+    state.data.emergencyPhone = state.data.emergencyPhone.replace(/[\s-]/g, '');
+    if (!/^0\d{9}$/.test(state.data.emergencyPhone)) return alertField('emergencyPhone', 'เบอร์โทรผู้ติดต่อฉุกเฉินไม่ถูกต้อง');
+  }
+  if (state.data.group === 'senior33') {
+    if (!state.data.nickname) return alertField('nickname', 'กรุณากรอกชื่อเล่น');
+    if (!state.data.studentId) return alertField('studentId', 'กรุณากรอกรหัสนักศึกษา');
+    if (!state.data.nationalId) return alertField('nationalId', 'กรุณากรอกเลขบัตรประชาชน');
+    state.data.nationalId = state.data.nationalId.replace(/[\s-]/g, '');
+    if (!/^\d{13}$/.test(state.data.nationalId)) return alertField('nationalId', 'เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก');
+    if (!state.data.gender) return alertField('gender', 'กรุณาเลือกเพศ');
+  }
+  if (state.data.group === 'alumni') {
+    if (!state.data.nickname) return alertField('nickname', 'กรุณากรอกชื่อเล่น');
+    if (!state.data.alumniBatch) return alertField('alumniBatch', 'กรุณาเลือกรุ่น');
+    if (!state.data.gender) return alertField('gender', 'กรุณาเลือกเพศ');
+  }
+  if (state.data.group === 'faculty') {
+    if (!state.data.title) return alertField('title', 'กรุณากรอกคำนำหน้า');
+    if (!state.data.position) return alertField('position', 'กรุณากรอกตำแหน่ง/สังกัด');
+  }
+
+  // Validate pill groups
+  if (!pillGroupValid('dietRestrictions')) return alert('กรุณาเลือกข้อจำกัดด้านอาหาร');
+  if (!pillGroupValid('allergies')) return alert('กรุณาเลือกอาหารที่แพ้ (หรือเลือก "ไม่แพ้")');
+  if (!pillGroupValid('medicalConditions')) return alert('กรุณาเลือกโรคประจำตัว (หรือเลือก "ไม่มี")');
+  if (!pillGroupValid('medications')) return alert('กรุณาเลือกยาประจำตัว (หรือเลือก "ไม่มี")');
+
+  // กลุ่มที่ทีมจัดห้องให้ → set roomType อัตโนมัติเป็น twin (พักคู่)
+  if (state.data.group === 'student34' || state.data.group === 'senior33') {
+    state.data.roomType = 'twin';
+    state.data.bedType = '';
+    state.data.roommate = null;
+    state.data.hasCompanion = false;
+    state.data.companion = null;
+  }
+
+  navigate(nextStep);
+}
+
+function onRoomTypeNext() {
+  const r = state.data.roomType;
+  if (!r) return;
+  if (r === 'twin') navigate('roommate');
+  else if (r === 'single') navigate('hasCompanion');
+  else if (r === 'nostay') {
+    // nostay ก็ถาม hasCompanion เพื่อนับจำนวนคนทานอาหาร
+    navigate('hasCompanion');
+  }
+}
+
+function saveRoommateAndContinue() {
+  const firstName = readField('rm_firstName');
+  const lastName = readField('rm_lastName');
+  const rm = {
+    firstName: firstName,
+    lastName: lastName,
+    fullName: (firstName + ' ' + lastName).trim(),
+    nickname: readField('rm_nickname'),
+    idOrBatch: readField('rm_idOrBatch'),
+    gender: readField('rm_gender'),
+    phone: readField('rm_phone').replace(/[\s-]/g, ''),
+    email: readField('rm_email'),
+    dietRestrictions: readPillGroup('rm_dietRestrictions'),
+    dietOther: readField('rm_dietRestrictions_other'),
+    allergies: readPillGroup('rm_allergies'),
+    allergyOther: readField('rm_allergies_other'),
+    medicalConditions: readPillGroup('rm_medicalConditions'),
+    medicalOther: readField('rm_medicalConditions_other'),
+    medications: readPillGroup('rm_medications'),
+    medicationOther: readField('rm_medications_other'),
+  };
+  if (!rm.firstName) return alertField('rm_firstName', 'กรุณากรอกชื่อรูมเมท');
+  if (!rm.lastName) return alertField('rm_lastName', 'กรุณากรอกนามสกุลรูมเมท');
+  if (!rm.nickname) return alertField('rm_nickname', 'กรุณากรอกชื่อเล่น');
+  if (!rm.idOrBatch) return alertField('rm_idOrBatch', 'กรุณากรอกรหัสหรือรุ่น');
+  if (!rm.gender) return alertField('rm_gender', 'กรุณาเลือกเพศ');
+  if (!/^0\d{9}$/.test(rm.phone)) return alertField('rm_phone', 'เบอร์โทรไม่ถูกต้อง');
+  state.data.roommate = rm;
+  navigate('bedType');
+}
+
+function onHasCompanionNext() {
+  const v = document.querySelector('input[name=hasComp]:checked').value;
+  if (v === 'yes') {
+    state.data.hasCompanion = true;
+    navigate('companion');
+  } else {
+    state.data.hasCompanion = false;
+    state.data.companion = null;
+    // ถ้า roomType=twin → ไป bedType ต่อ
+    if (state.data.roomType === 'twin') {
+      navigate('bedType');
+    } else {
+      navigate('confirm');
+    }
+  }
+}
+
+function renderCompanionList() {
+  const adults = parseInt(document.getElementById('comp_adultCount')?.value || '0', 10);
+  const children = parseInt(document.getElementById('comp_childCount')?.value || '0', 10);
+  const listEl = document.getElementById('companionList');
+  if (!listEl) return;
+
+  if (adults + children === 0) {
+    listEl.innerHTML = '<div class="field-hint" style="text-align: center; color: var(--ink-soft); padding: 12px;">เลือกจำนวนผู้ติดตามด้านบน</div>';
+    return;
+  }
+
+  const existing = (state.data.companion && state.data.companion.list) || [];
+  let html = '';
+  let idx = 0;
+  for (let i = 0; i < adults; i++) {
+    html += companionPersonHtml(idx, 'ผู้ใหญ่', existing[idx] || {}, false);
+    idx++;
+  }
+  for (let i = 0; i < children; i++) {
+    html += companionPersonHtml(idx, 'เด็ก', existing[idx] || {}, true);
+    idx++;
+  }
+  listEl.innerHTML = html;
+
+  for (let i = 0; i < adults + children; i++) {
+    bindPillGroup('cp_' + i + '_diet');
+    bindPillGroup('cp_' + i + '_allergy');
+    bindPillGroup('cp_' + i + '_medical');
+  }
+
+  // Bind bed choice toggle (.selected class)
+  document.querySelectorAll('[data-bed-group]').forEach(function(grp) {
+    grp.querySelectorAll('input[type=radio]').forEach(function(r) {
+      r.addEventListener('change', function(e) {
+        grp.querySelectorAll('.choice').forEach(function(c) { c.classList.remove('selected'); });
+        e.target.closest('.choice').classList.add('selected');
+      });
+    });
+  });
+}
+
+function companionPersonHtml(idx, typeLabel, data, isChild) {
+  data = data || {};
+  const dietList = data.dietRestrictions || [];
+  const allergyList = data.allergies || [];
+  const medicalList = data.medicalConditions || [];
+
+  const fnId = 'cp_' + idx + '_firstName';
+  const lnId = 'cp_' + idx + '_lastName';
+  const relId = 'cp_' + idx + '_relation';
+  const ageId = 'cp_' + idx + '_age';
+  const fnVal = escapeHtml(data.firstName || '');
+  const lnVal = escapeHtml(data.lastName || '');
+  const relVal = escapeHtml(data.relation || '');
+  const ageVal = escapeHtml(data.age || '');
+
+  let middle;
+  if (isChild) {
+    const bedId = 'cp_' + idx + '_bed';
+    const extraBed = data.extraBed === true;
+    middle = '<div class="field-row">' +
+      '<div class="field"><label>ความสัมพันธ์ <span class="req">*</span></label>' +
+      '<input type="text" id="' + relId + '" value="' + relVal + '" placeholder="เช่น ลูก, หลาน"></div>' +
+      '<div class="field"><label>อายุ (ปี) <span class="req">*</span></label>' +
+      '<input type="number" id="' + ageId + '" value="' + ageVal + '" min="0" max="12"></div>' +
+    '</div>' +
+    '<div class="field"><label>การจัดที่นอน <span class="req">*</span></label>' +
+      '<div class="choice-list" data-bed-group="' + bedId + '">' +
+        '<label class="choice ' + (!extraBed ? 'selected' : '') + '">' +
+          '<input type="radio" name="' + bedId + '" value="no" ' + (!extraBed ? 'checked' : '') + '>' +
+          '<div class="choice-emoji">🛌</div>' +
+          '<div class="choice-body">' +
+            '<div class="choice-title">นอนกับผู้ปกครอง</div>' +
+            '<div class="choice-desc">ใช้เตียงเดียวกับผู้ปกครอง</div>' +
+          '</div>' +
+          '<div class="choice-price free">ฟรี</div>' +
+        '</label>' +
+        '<label class="choice ' + (extraBed ? 'selected' : '') + '">' +
+          '<input type="radio" name="' + bedId + '" value="yes" ' + (extraBed ? 'checked' : '') + '>' +
+          '<div class="choice-emoji">🛏️</div>' +
+          '<div class="choice-body">' +
+            '<div class="choice-title">เตียงเสริม</div>' +
+            '<div class="choice-desc">เด็กมีเตียงแยกเป็นของตัวเอง</div>' +
+          '</div>' +
+          '<div class="choice-price">+1,000</div>' +
+        '</label>' +
+      '</div>' +
+    '</div>';
+  } else {
+    middle = '<div class="field"><label>ความสัมพันธ์ <span class="req">*</span></label>' +
+      '<input type="text" id="' + relId + '" value="' + relVal + '" placeholder="เช่น สามี, ภรรยา, พี่/น้อง"></div>';
+  }
+
+  const headerLabel = '👤 ผู้ติดตามคนที่ ' + (idx + 1) + ' · ' + typeLabel;
+
+  return '<div class="card" style="background: rgba(14,165,233,0.04); border: 1px solid rgba(14,165,233,0.15); margin-bottom: 16px;">' +
+    '<div class="step-label" style="margin-bottom: 12px;">' + headerLabel + '</div>' +
+    '<div class="field-row">' +
+      '<div class="field"><label>ชื่อ <span class="req">*</span></label>' +
+      '<input type="text" id="' + fnId + '" value="' + fnVal + '"></div>' +
+      '<div class="field"><label>นามสกุล <span class="req">*</span></label>' +
+      '<input type="text" id="' + lnId + '" value="' + lnVal + '"></div>' +
+    '</div>' +
+    middle +
+    '<div class="section-h" style="margin-top: 8px;">🍽️ อาหาร / สุขภาพ</div>' +
+    pillFieldHtml('cp_' + idx + '_diet', 'ข้อจำกัดด้านอาหาร', OPTS.diet, dietList, data.dietOther) +
+    pillFieldHtml('cp_' + idx + '_allergy', 'อาหารที่แพ้', OPTS.allergy, allergyList, data.allergyOther) +
+    pillFieldHtml('cp_' + idx + '_medical', 'โรคประจำตัว', OPTS.medical, medicalList, data.medicalOther) +
+  '</div>';
+}
+
+function saveCompanionAndContinue() {
+  const adults = parseInt(readField('comp_adultCount'), 10) || 0;
+  const children = parseInt(readField('comp_childCount'), 10) || 0;
+  const total = adults + children;
+  if (total === 0) return alert('กรุณาเลือกจำนวนผู้ติดตามอย่างน้อย 1 คน (ผู้ใหญ่หรือเด็ก)');
+
+  const list = [];
+  for (let i = 0; i < total; i++) {
+    const isChild = i >= adults;
+    const firstName = readField('cp_' + i + '_firstName');
+    const lastName = readField('cp_' + i + '_lastName');
+    const relation = readField('cp_' + i + '_relation');
+    const age = isChild ? readField('cp_' + i + '_age') : '';
+
+    if (!firstName) return alertField('cp_' + i + '_firstName', 'กรุณากรอกชื่อผู้ติดตามคนที่ ' + (i + 1));
+    if (!lastName) return alertField('cp_' + i + '_lastName', 'กรุณากรอกนามสกุลผู้ติดตามคนที่ ' + (i + 1));
+    if (!relation) return alertField('cp_' + i + '_relation', 'กรุณากรอกความสัมพันธ์ของผู้ติดตามคนที่ ' + (i + 1));
+    if (isChild && !age) return alertField('cp_' + i + '_age', 'กรุณากรอกอายุของผู้ติดตามคนที่ ' + (i + 1));
+    if (!pillGroupValid('cp_' + i + '_diet')) return alert('กรุณาเลือกข้อจำกัดอาหารของผู้ติดตามคนที่ ' + (i + 1));
+    if (!pillGroupValid('cp_' + i + '_allergy')) return alert('กรุณาเลือกอาหารที่แพ้ของผู้ติดตามคนที่ ' + (i + 1));
+    if (!pillGroupValid('cp_' + i + '_medical')) return alert('กรุณาเลือกโรคประจำตัวของผู้ติดตามคนที่ ' + (i + 1));
+
+    let extraBed = null;
+    if (isChild) {
+      const bedRadio = document.querySelector('input[name=cp_' + i + '_bed]:checked');
+      if (!bedRadio) return alert('กรุณาเลือกการจัดที่นอนของเด็กคนที่ ' + (i + 1 - adults));
+      extraBed = bedRadio.value === 'yes';
+    }
+
+    list.push({
+      firstName: firstName, lastName: lastName, relation: relation, age: age,
+      fullName: (firstName + ' ' + lastName).trim(),
+      type: isChild ? 'เด็ก' : 'ผู้ใหญ่',
+      extraBed: extraBed,
+      dietRestrictions: readPillGroup('cp_' + i + '_diet'),
+      dietOther: readField('cp_' + i + '_diet_other'),
+      allergies: readPillGroup('cp_' + i + '_allergy'),
+      allergyOther: readField('cp_' + i + '_allergy_other'),
+      medicalConditions: readPillGroup('cp_' + i + '_medical'),
+      medicalOther: readField('cp_' + i + '_medical_other'),
+    });
+  }
+
+  state.data.companion = { adultCount: adults, childCount: children, list: list };
+
+  if (state.data.roomType === 'twin') {
+    navigate('bedType');
+  } else {
+    navigate('confirm');
+  }
+}
+
+function onBedTypeNext() {
+  if (state.data.bedType) navigate('confirm');
+}
+
+// ====================================================================
+//  FILE UPLOAD
+// ====================================================================
+function handleSlipFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    alert('ไฟล์ใหญ่เกิน 10 MB');
+    e.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    state.data.slip = {
+      name: file.name,
+      mimeType: file.type,
+      data: ev.target.result.split(',')[1],
+    };
+    state.data.slipQrAmount = null;
+    state.data.slipQrTransRef = null;
+    document.getElementById('uploadBox').classList.add('has-file');
+    document.getElementById('slipFilename').textContent = '✓ ' + file.name + ' — กำลังแสกน QR...';
+
+    // แสกน QR (เฉพาะภาพ ไม่รวม PDF)
+    if (file.type.startsWith('image/')) {
+      scanSlipQR(ev.target.result);
+    } else {
+      // PDF — ไม่ scan QR ให้กรอกยอดด้วยมือ + รอ backend ตรวจ
+      document.getElementById('slipFilename').textContent = '✓ ' + file.name;
+      showQrResult(null, 'PDF ไม่สามารถสแกน QR ได้ — ระบบจะตรวจสลิปด้วยวิธีอื่น');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function scanSlipQR(dataUrl) {
+  const img = new Image();
+  img.onload = async () => {
+    try {
+      const sizes = [img.width, 1600, 2000, 1200, 800];
+      let foundCode = null;
+
+      for (const targetW of sizes) {
+        if (targetW <= 0) continue;
+        const ratio = targetW / img.width;
+        const w = Math.round(img.width * ratio);
+        const h = Math.round(img.height * ratio);
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const imageData = ctx.getImageData(0, 0, w, h);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) {
+          console.log('[scanSlipQR] เจอ QR ที่ขนาด', w, 'x', h);
+          foundCode = code;
+          break;
+        }
+      }
+
+      if (foundCode) {
+        const parsed = parseEMVCo(foundCode.data);
+        state.data.slipQrTransRef = parsed.transRef || foundCode.data.slice(0, 80);
+        if (parsed.amount !== null) {
+          state.data.slipQrAmount = parsed.amount;
+          showQrResult(parsed.amount, null);
+          return;
+        }
+        // เจอ QR แต่ไม่มี amount (SCB/KBANK) → fallback browser OCR (4 methods voting)
+        showQrResult(null, '🔍 พบสลิป · กำลังอ่านยอดอัตโนมัติ... (รอ 5-15 วินาที)');
+        const ocr = await ocrSlipAmount(dataUrl);
+        if (ocr.amount > 0) {
+          state.data.slipQrAmount = ocr.amount;
+          showQrResult(ocr.amount, null);
+        } else {
+          state.data.slipQrAmount = null;
+          showQrResult(null, '✓ พบสลิป · ระบบจะตรวจยอดอีกครั้งหลังส่ง');
+        }
+        return;
+      }
+
+      // ไม่เจอ QR → ลอง OCR ตรงๆ
+      console.log('[scanSlipQR] ไม่พบ QR — fallback OCR');
+      showQrResult(null, '🔍 กำลังอ่านสลิปอัตโนมัติ... (รอ 5-15 วินาที)');
+      const ocr = await ocrSlipAmount(dataUrl);
+      if (ocr.amount > 0) {
+        state.data.slipQrAmount = ocr.amount;
+        showQrResult(ocr.amount, null);
+      } else {
+        showQrResult(null, '⚠️ อ่านยอดอัตโนมัติไม่ได้ — ระบบจะตรวจอีกครั้งหลังส่ง');
+      }
+    } catch (err) {
+      console.error('QR/OCR scan error:', err);
+      showQrResult(null, 'แสกนล้มเหลว — ระบบจะตรวจหลังส่ง');
+    }
+  };
+  img.onerror = () => showQrResult(null, 'อ่านภาพล้มเหลว');
+  img.src = dataUrl;
+}
+
+function showQrResult(amount, errorMsg) {
+  const filenameEl = document.getElementById('slipFilename');
+  const file = state.data.slip;
+  if (!filenameEl || !file) return;
+
+  if (amount !== null && amount !== undefined) {
+    const cost = calcCost();
+    const TOLERANCE = 5;
+    const diff = amount - cost;
+    let statusHtml;
+    if (Math.abs(diff) <= TOLERANCE) {
+      statusHtml = '<div style="color: #16A34A; font-size: 13px; margin-top: 4px;">✅ ยอดตรง: ' + (amount.toLocaleString()) + ' บาท</div>';
+    } else if (diff > TOLERANCE) {
+      statusHtml = '<div style="color: #D97706; font-size: 13px; margin-top: 4px;">⚠️ ยอดเกิน: ' + (amount.toLocaleString()) + ' บาท (เกินมา +' + (diff.toLocaleString()) + ')<br><small>กรุณาปรับยอดบริจาค (ส่วนตัว/รุ่น) ให้ตรงสลิป หรือแนบสลิปใหม่</small></div>';
+    } else {
+      const retry = state.data.amountRetryCount || 0;
+      const retryNote = retry >= 2
+        ? `<br><small>หากแก้ไขแล้วยังไม่ตรง ระบบจะส่งให้แอดมินตรวจสอบ</small>`
+        : '';
+      statusHtml = '<div style="color: #DC2626; font-size: 13px; margin-top: 4px;">❌ ยอดไม่ตรง: ' + (amount.toLocaleString()) + ' บาท (ขาดอีก ' + (Math.abs(diff).toLocaleString()) + ' บาท)' + (retryNote) + '</div>';
+    }
+    filenameEl.innerHTML = '✓ ' + escapeHtml(file.name) + statusHtml;
+  } else {
+    filenameEl.innerHTML = '✓ ' + escapeHtml(file.name) +
+      `<div style="color: #6B7280; font-size: 12px; margin-top: 4px;">ℹ️ ${escapeHtml(errorMsg || '')}</div>`;
+  }
+}
+
+// Parse EMVCo QR string → ดึง amount (field 54) + transaction ref
+// ============== Browser-side OCR (Tesseract.js) ==============
+let _tesseractWorkerFull = null;   // อ่านได้ทั้งภาษา ใช้หา keyword
+let _tesseractWorkerNum = null;    // อ่านเฉพาะตัวเลข แม่นกว่า
+
+async function getTesseractWorker(mode) {
+  if (mode === 'num') {
+    if (_tesseractWorkerNum) return _tesseractWorkerNum;
+    _tesseractWorkerNum = await Tesseract.createWorker('eng');
+    await _tesseractWorkerNum.setParameters({
+      tessedit_char_whitelist: '0123456789.,',
+      tessedit_pageseg_mode: '6', // single block
+    });
+    return _tesseractWorkerNum;
+  }
+  if (_tesseractWorkerFull) return _tesseractWorkerFull;
+  _tesseractWorkerFull = await Tesseract.createWorker(['tha', 'eng']);
+  await _tesseractWorkerFull.setParameters({
+    tessedit_pageseg_mode: '6',
+  });
+  return _tesseractWorkerFull;
+}
+
+/**
+ * Pre-process แรง: grayscale + binary threshold + boost contrast
+ */
+function preprocessImage(dataUrl, opts) {
+  opts = opts || {};
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX_W = 2000;
+      const ratio = img.width > MAX_W ? MAX_W / img.width : 1;
+      const w = Math.round(img.width * ratio);
+      const h = Math.round(img.height * ratio);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
+      const threshold = opts.threshold || 140; // binary cutoff
+
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        let v;
+        if (opts.binary) {
+          // binary: ขาวล้วน หรือดำล้วน → ตัด background รบกวน
+          v = gray > threshold ? 255 : 0;
+        } else {
+          // contrast boost
+          v = Math.max(0, Math.min(255, ((gray - 128) * 1.6) + 128));
+        }
+        data[i] = v; data[i + 1] = v; data[i + 2] = v;
+      }
+      ctx.putImageData(imageData, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+/**
+ * Parse ยอดเงินจาก text — รองรับสลิปไทยทุกธนาคาร
+ */
+function parseSlipAmountJS(text) {
+  if (!text) return 0;
+  // normalize: เลขไทย → อาหรับ + ลบสัญลักษณ์ ฿ ที่อาจถูกอ่านเป็น 8
+  let normalized = text
+    .replace(/[\u0E50-\u0E59]/g, d => d.charCodeAt(0) - 0x0E50)
+    // ฿ ติดเลข → ลบ ฿ ทิ้ง (Tesseract มักอ่าน ฿ เป็น 8)
+    .replace(/฿\s*/g, '')
+    // "8 8,730" หรือ "88,730" ที่เริ่มด้วย "8" ติดกับ comma แล้วมีบริบทเป็น "บาท" — ลบ 8 ตัวแรก
+    // (จะทำหลัง parse แทน เพราะเสี่ยงทำลายเลขจริง)
+    ;
+
+  const raw = normalized;
+  const flat = normalized.replace(/\s+/g, ' ');
+
+  console.log('[parseSlip] raw:', raw.slice(0, 400).replace(/\n/g, ' | '));
+
+  const candidates = [];
+  let m;
+
+  // Tier 7: keyword + decimal (สูงสุด)
+  const re0 = /(?:จำนวน(?:เงิน)?|จํานวน(?:เงิน)?|amount|total|ยอด(?:เงิน|รวม|โอน|ที่โอน|ทั้งสิ้น)?|รวม(?:ทั้งสิ้น|ทั้งหมด)?|net\s*amount|grand\s*total)[\s:]*\n?[\s:]*(?:THB|฿|บาท)?[\s:]*([\d]{1,3}(?:,\d{3})*\.\d{2})/gi;
+  while ((m = re0.exec(raw)) !== null) {
+    const n = parseFloat(m[1].replace(/,/g, ''));
+    if (n > 0 && n < 10000000) candidates.push({ value: n, score: 7 });
+  }
+
+  // Tier 5: keyword + เลข
+  const re1 = /(?:จำนวน(?:เงิน)?|จํานวน(?:เงิน)?|amount|total|ยอด(?:เงิน|รวม|โอน|ที่โอน|ทั้งสิ้น)?|รวม(?:ทั้งสิ้น|ทั้งหมด)?|net\s*amount|grand\s*total)[\s:]*\n?[\s:]*(?:THB|฿|บาท)?[\s:]*([\d,]+(?:\.\d{1,2})?)/gi;
+  while ((m = re1.exec(raw)) !== null) {
+    const n = parseFloat(m[1].replace(/,/g, ''));
+    if (n > 0 && n < 10000000) candidates.push({ value: n, score: 5 });
+  }
+
+  // Tier 5: เลขทศนิยม + บาท/THB
+  const re2dec = /([\d]{1,3}(?:,\d{3})*\.\d{2})\s*(?:บาท|baht|THB)\b/gi;
+  while ((m = re2dec.exec(flat)) !== null) {
+    const n = parseFloat(m[1].replace(/,/g, ''));
+    if (n > 0 && n < 10000000) candidates.push({ value: n, score: 5 });
+  }
+
+  // Tier 4: เลขจำนวนเต็ม + บาท
+  const re2 = /([\d,]+)\s*(?:บาท|baht|THB)\b/gi;
+  while ((m = re2.exec(flat)) !== null) {
+    const n = parseFloat(m[1].replace(/,/g, ''));
+    if (n >= 10 && n < 10000000) candidates.push({ value: n, score: 4 });
+  }
+
+  // Tier 4: ฿/THB ก่อนเลข (เผื่อ ฿ ถูกลบไปแล้ว ก็ไม่ match — แต่ THB เผื่อไว้)
+  const re3 = /(?:THB|฿)\s*([\d,]+(?:\.\d{1,2})?)/gi;
+  while ((m = re3.exec(flat)) !== null) {
+    const n = parseFloat(m[1].replace(/,/g, ''));
+    if (n > 0 && n < 10000000) candidates.push({ value: n, score: 4 });
+  }
+
+  // Tier 3 (ใหม่): เลขทศนิยม decimal 2 ตำแหน่ง — ปรากฏหลายครั้ง = boost
+  const reAllDec = /([\d]{1,3}(?:,\d{3})*\.\d{2})/g;
+  const decCounts = {};
+  while ((m = reAllDec.exec(flat)) !== null) {
+    const n = parseFloat(m[1].replace(/,/g, ''));
+    if (n >= 1 && n < 10000000) {
+      decCounts[n] = (decCounts[n] || 0) + 1;
+    }
+  }
+  // ถ้ามีเลขปรากฏ ≥2 ครั้ง → boost (ที่ TrueMoney "8,730.00" โผล่ 2 ครั้ง)
+  Object.keys(decCounts).forEach(k => {
+    const n = parseFloat(k);
+    const count = decCounts[k];
+    if (count >= 2 && n > 0) {
+      candidates.push({ value: n, score: 6 }); // ระหว่าง Tier 5 และ 7
+    }
+  });
+
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => b.score - a.score || b.value - a.value);
+    console.log('[parseSlip] candidates:', JSON.stringify(candidates.slice(0, 8)));
+    return candidates[0].value;
+  }
+
+  // Fallback
+  const reMoney = /([\d]{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+\.\d{2})/g;
+  const numbers = [];
+  while ((m = reMoney.exec(flat)) !== null) {
+    const n = parseFloat(m[1].replace(/,/g, ''));
+    if (n >= 1 && n < 10000000) numbers.push(n);
+  }
+  console.log('[parseSlip] fallback numbers:', numbers);
+  if (numbers.length > 0) {
+    const reasonable = numbers.filter(n => n >= 10 && n <= 100000);
+    if (reasonable.length > 0) return Math.max(...reasonable);
+    return Math.max(...numbers);
+  }
+  return 0;
+}
+
+/**
+ * Run Tesseract OCR + extract amount
+ * @param {string} dataUrl - image data URL
+ * @returns {Promise<{amount: number, text: string}>}
+ */
+/**
+ * รัน OCR หลายวิธีพร้อมกัน → vote หา amount ที่น่าเชื่อถือสุด
+ * Methods: full-text(thai+eng), num-only, binary-thresh + num-only
+ * + (server Drive OCR ทำหลัง submit)
+ */
+async function ocrSlipAmount(dataUrl) {
+  try {
+    if (typeof Tesseract === 'undefined') {
+      console.warn('[OCR] Tesseract not loaded');
+      return { amount: 0, text: '' };
+    }
+
+    // เตรียมภาพ 2 แบบพร้อมกัน
+    const [imgContrast, imgBinary] = await Promise.all([
+      preprocessImage(dataUrl, { binary: false }),
+      preprocessImage(dataUrl, { binary: true, threshold: 140 }),
+    ]);
+
+    // รัน 3 วิธีพร้อมกัน
+    const [resultFullText, resultNumOnly, resultBinaryNum] = await Promise.all([
+      runOCRMethod('full-thai-eng', imgContrast),
+      runOCRMethod('num-only', imgContrast),
+      runOCRMethod('num-only', imgBinary),
+    ]);
+
+    const candidates = [];
+    if (resultFullText.amount > 0) candidates.push({ method: 'full-text', amount: resultFullText.amount });
+    if (resultNumOnly.amount > 0) candidates.push({ method: 'num-only', amount: resultNumOnly.amount });
+    if (resultBinaryNum.amount > 0) candidates.push({ method: 'binary-num', amount: resultBinaryNum.amount });
+
+    console.log('[OCR Vote] candidates:', JSON.stringify(candidates));
+
+    if (candidates.length === 0) {
+      return { amount: 0, text: resultFullText.text };
+    }
+
+    // Vote: หา amount ที่ตรงกัน (±0.01) ≥ 2 วิธี
+    const voted = voteAmount(candidates);
+    console.log('[OCR Vote] winner:', voted);
+
+    return { amount: voted, text: resultFullText.text };
+  } catch (e) {
+    console.error('[OCR] error:', e);
+    return { amount: 0, text: '' };
+  }
+}
+
+/**
+ * Run OCR ด้วย method ที่กำหนด
+ */
+async function runOCRMethod(mode, imgDataUrl) {
+  try {
+    const worker = await getTesseractWorker(mode === 'num-only' ? 'num' : 'full');
+    const { data } = await worker.recognize(imgDataUrl);
+    const text = data.text || '';
+    console.log('[OCR ' + (mode) + '] text:', text.slice(0, 200).replace(/\n/g, ' | '));
+    const amount = parseSlipAmountJS(text);
+    console.log('[OCR ' + (mode) + '] amount:', amount);
+    return { amount, text };
+  } catch (e) {
+    console.error('[OCR ' + (mode) + '] error:', e);
+    return { amount: 0, text: '' };
+  }
+}
+
+/**
+ * Vote หา amount ที่ตรงกัน — ถ้า ≥2 วิธีให้ค่าเดียวกัน → confident
+ * ถ้าไม่มีตรงกัน → ใช้ value ที่มีจุดทศนิยม (น่าเชื่อถือกว่า)
+ */
+function voteAmount(candidates) {
+  if (candidates.length === 0) return 0;
+  if (candidates.length === 1) return candidates[0].amount;
+
+  // นับ vote (จัดกลุ่มตาม amount ใกล้เคียงกัน ±0.01)
+  const groups = [];
+  for (const c of candidates) {
+    let found = false;
+    for (const g of groups) {
+      if (Math.abs(g.amount - c.amount) < 0.01) {
+        g.count++;
+        g.methods.push(c.method);
+        found = true;
+        break;
+      }
+    }
+    if (!found) groups.push({ amount: c.amount, count: 1, methods: [c.method] });
+  }
+
+  // เรียง: count มากสุดก่อน → ถ้าเท่ากัน ใช้ที่มีทศนิยม
+  groups.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    const aHasDecimal = a.amount % 1 !== 0;
+    const bHasDecimal = b.amount % 1 !== 0;
+    if (aHasDecimal !== bHasDecimal) return bHasDecimal ? 1 : -1;
+    return b.amount - a.amount;
+  });
+
+  console.log('[OCR Vote] groups:', JSON.stringify(groups));
+  return groups[0].amount;
+}
+
+function parseEMVCo(qrData) {
+  const result = { amount: null, transRef: '' };
+  if (!qrData || typeof qrData !== 'string') return result;
+
+  // ถ้าเป็น URL → ไม่ใช่ EMVCo (ส่วนใหญ่เป็น "QR ตรวจสอบสลิป" ของ SCB/KBANK)
+  // ดึง reference จาก URL parameters หรือ path
+  if (/^https?:\/\//i.test(qrData)) {
+    // หา ref/reference/txnId/id ใน query string หรือ path
+    const refMatch = qrData.match(/[?&](?:ref|reference|txn|txnId|id|transactionId)=([^&]+)/i);
+    if (refMatch) {
+      result.transRef = decodeURIComponent(refMatch[1]).slice(0, 80);
+    } else {
+      // ใช้ URL ทั้งหมดเป็น transRef (กัน fraud — สลิปเดียวกันให้ URL เหมือนกัน)
+      result.transRef = qrData.slice(0, 200);
+    }
+    return result;
+  }
+
+  // ลองตรวจว่าเป็น EMVCo จริงไหม (ต้องเริ่มด้วย "0002" หรือ "01")
+  if (!/^\d{4}/.test(qrData)) {
+    // ไม่ใช่ทั้ง URL ทั้ง EMVCo — เก็บ data ทั้งก้อนเป็น transRef
+    result.transRef = qrData.slice(0, 200);
+    return result;
+  }
+
+  let i = 0;
+  while (i < qrData.length - 4) {
+    const id = qrData.slice(i, i + 2);
+    const len = parseInt(qrData.slice(i + 2, i + 4), 10);
+    if (isNaN(len)) break;
+    const value = qrData.slice(i + 4, i + 4 + len);
+
+    if (id === '54') {
+      const amt = parseFloat(value);
+      if (!isNaN(amt)) result.amount = amt;
+    }
+    if (id >= '29' && id <= '51') {
+      let j = 0;
+      while (j < value.length - 4) {
+        const subId = value.slice(j, j + 2);
+        const subLen = parseInt(value.slice(j + 2, j + 4), 10);
+        if (isNaN(subLen)) break;
+        const subVal = value.slice(j + 4, j + 4 + subLen);
+        if (subId === '02' && !result.transRef) result.transRef = subVal;
+        j += 4 + subLen;
+      }
+    }
+
+    i += 4 + len;
+  }
+  return result;
+}
+
+function showToast(msg, type, large) {
+  type = type || 'error';
+  // ลบ toast เก่า
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-' + type + (large ? ' toast-large' : '');
+  const icon = type === 'error' ? '⚠️' : (type === 'success' ? '✅' : 'ℹ️');
+  toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-msg">${escapeHtml(msg).replace(/\n/g, '<br>')}</span>`;
+  document.body.appendChild(toast);
+  // animate in
+  requestAnimationFrame(() => toast.classList.add('show'));
+  // auto hide
+  const duration = large ? 5000 : 4000;
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// override built-in alert
+window.alert = function(msg) { showToast(msg, 'error'); };
+
+function alertField(id, msg) {
+  showToast(msg, 'error');
+  const el = document.getElementById(id);
+  if (el) {
+    el.focus();
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // เพิ่ม shake animation
+    el.classList.add('field-error');
+    setTimeout(() => el.classList.remove('field-error'), 600);
+  }
+}
+
+// ====================================================================
+//  SUBMIT
+// ====================================================================
+function submitEditLogin() {
+  const email = readField('loginEmail').trim();
+  const phone = readField('loginPhone').replace(/[\s-]/g, '');
+  const errBox = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+
+  if (!email || !phone) {
+    errBox.style.display = 'block';
+    errBox.innerHTML = 'กรุณากรอกทั้งอีเมลและเบอร์โทร';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> กำลังตรวจสอบ...';
+  errBox.style.display = 'none';
+
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.ok) {
+        // Pre-fill state จากข้อมูลเดิม
+        state.data = Object.assign(emptyData(), res.data);
+        state.editMode = true;
+        state.editingRegId = res.registrationId;
+        state.history = ['welcome', 'editLogin'];
+        // ไปหน้า step ตาม group ของข้อมูลเดิม → ข้าม group selection
+        const groupStep = res.data && res.data.group;
+        const validSteps = ['student34', 'senior33', 'alumni', 'faculty'];
+        navigate(validSteps.indexOf(groupStep) >= 0 ? groupStep : 'group', true);
+      } else {
+        errBox.style.display = 'block';
+        errBox.innerHTML = '❌ ' + res.message;
+        btn.disabled = false;
+        btn.innerHTML = 'เข้าสู่ระบบแก้ไข 🔓';
+      }
+    })
+    .withFailureHandler(err => {
+      errBox.style.display = 'block';
+      errBox.innerHTML = '❌ เกิดข้อผิดพลาด: ' + (err.message || err);
+      btn.disabled = false;
+      btn.innerHTML = 'เข้าสู่ระบบแก้ไข 🔓';
+    })
+    .findRegistration(email, phone);
+}
+
+function submitForm() {
+  state.data.consentPhoto = document.getElementById('consentPhoto').checked;
+  const pdpaEl = document.getElementById('consentPdpa');
+  if (pdpaEl) state.data.consentPdpa = pdpaEl.checked;
+  state.data.notes = readField('notes');
+  state.data.supportPersonal = readField('supportPersonal');
+  state.data.supportBatch = readField('supportBatch');
+
+  // ตรวจ consent ภาพ — บังคับ
+  if (!state.data.consentPhoto) {
+    return alert('กรุณายินยอมให้ใช้ภาพถ่าย/วิดีโอเพื่อประชาสัมพันธ์ CMMBA');
+  }
+
+  // ตรวจ PDPA consent สำหรับกลุ่มที่กรอกเลขบัตร
+  if ((state.data.group === 'student34' || state.data.group === 'senior33') && !state.data.consentPdpa) {
+    return alert('กรุณายินยอมให้ใช้เลขบัตรประชาชนเพื่อทำประกันการเดินทาง');
+  }
+
+  // ตรวจ QR amount ของสลิป (frontend pre-check)
+  const cost = calcCost();
+  if (cost > 0) {
+    if (!state.data.slip || !state.data.slip.data) {
+      return alert('❌ กรุณาแนบสลิปการโอนเงินก่อน');
+    }
+    const qrAmount = state.data.slipQrAmount;
+    if (qrAmount !== null && qrAmount !== undefined) {
+      const diff = qrAmount - cost;
+      const TOLERANCE = 5;
+
+      // โอนเกิน → block + ให้กลับไปปรับยอดบริจาคเอง (เพราะไม่รู้ว่าจะใส่ส่วนตัวหรือรุ่น)
+      if (diff > TOLERANCE) {
+        state.data.amountRetryCount = 0;
+        return alert(
+          '⚠️ ยอดในสลิป (' + (qrAmount.toLocaleString()) + ' บาท) เกินยอดที่ต้องโอน (' + (cost.toLocaleString()) + ' บาท)\n' +
+          'เกินมา ' + (diff.toLocaleString()) + ' บาท\n\n' +
+          `กรุณากลับไปปรับยอดบริจาค (ในนามส่วนตัว / ในนามรุ่น) ให้ตรงกับสลิป\n` +
+          `หรือแนบสลิปที่ถูกต้อง`
+        );
+      }
+
+      // โอนน้อย → ครั้งที่ 1-2 บล็อก, ครั้งที่ 3+ ให้ผ่านพร้อมแจ้งแอดมิน
+      if (diff < -TOLERANCE) {
+        const retry = (state.data.amountRetryCount || 0) + 1;
+        state.data.amountRetryCount = retry;
+
+        if (retry < 3) {
+          return alert(
+            '❌ ยอดในสลิป (' + (qrAmount.toLocaleString()) + ' บาท) น้อยกว่ายอดที่ต้องโอน (' + (cost.toLocaleString()) + ' บาท)\n' +
+            'ขาดอีก ' + (Math.abs(diff).toLocaleString()) + ' บาท · ครั้งที่ ' + (retry) + '/3\n' +
+            `กรุณาโอนเงินใหม่ให้ครบ แล้วแนบสลิปอีกครั้ง`
+          );
+        }
+        // ครั้งที่ 3+ → ให้ผ่าน ติด flag adminReview
+        state.data.adminReviewFlag = true;
+        state.data.adminReviewReason = 'ระบบตรวจยอดสลิปได้ ' + (qrAmount.toLocaleString()) + ' บาท ขาดจาก ' + (cost.toLocaleString()) + ' (' + (retry) + ' ครั้ง)';
+        if (!confirm(
+          `⚠️ ระบบตรวจยอดสลิปไม่ตรง 3 ครั้ง\n\n` +
+          'ยอดในสลิป: ' + (qrAmount.toLocaleString()) + ' บาท\n' +
+          'ยอดที่ต้องโอน: ' + (cost.toLocaleString()) + ' บาท\n\n' +
+          `ระบบจะบันทึกข้อมูลและส่งให้ทีมแอดมินตรวจสอบ\n` +
+          `(หากระบบอ่านสลิปผิด แอดมินจะแก้ให้)\n\n` +
+          `ต้องการดำเนินการต่อหรือไม่?`
+        )) {
+          return;
+        }
+      }
+    } else {
+      // อ่านยอดไม่ได้ — ครั้งที่ 1-2 บล็อก, ครั้งที่ 3+ ให้ผ่านพร้อมแจ้งแอดมิน
+      const retry = (state.data.amountUnreadableCount || 0) + 1;
+      state.data.amountUnreadableCount = retry;
+
+      if (retry < 3) {
+        return alert(
+          '❌ ระบบตรวจยอดในสลิปไม่ได้ (ครั้งที่ ' + retry + '/3)\n\n' +
+          'กรุณาแนบสลิปที่ชัดเจน:\n' +
+          '• ภาพไม่เบลอ ไม่บิดเบี้ยว\n' +
+          '• มีตัวเลขยอดเงินอ่านได้ชัด\n' +
+          '• ครอบทั้งสลิปไม่ตัดมุม\n' +
+          '• ใช้ภาพ JPG/PNG (ไฟล์ PDF จะอ่านไม่ได้)\n\n' +
+          'ยอดที่ต้องโอน: ' + cost.toLocaleString() + ' บาท'
+        );
+      }
+      // ครั้งที่ 3+ → ให้ผ่าน + ส่งให้แอดมินตรวจ
+      state.data.adminReviewFlag = true;
+      state.data.adminReviewReason = 'ระบบไม่สามารถอ่านยอดในสลิปได้ (' + retry + ' ครั้ง)';
+      if (!confirm(
+        '⚠️ ระบบตรวจยอดในสลิปไม่ได้ 3 ครั้ง\n\n' +
+        'ยอดที่ต้องโอน: ' + cost.toLocaleString() + ' บาท\n\n' +
+        'ระบบจะบันทึกข้อมูลและส่งให้ทีมแอดมินตรวจสอบสลิปด้วยตา\n' +
+        '(หากแนบสลิปไม่ตรงจะถูกปฏิเสธ)\n\n' +
+        'ต้องการดำเนินการต่อหรือไม่?'
+      )) {
+        return;
+      }
+    }
+  }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  const hasSlip = state.data.slip && state.data.slip.data;
+  const labelDefault = state.editMode ? 'บันทึกการแก้ไข ✏️' : 'ลงทะเบียน 🌺';
+  btn.innerHTML = hasSlip
+    ? '<span class="spinner"></span> กำลังตรวจสลิป...'
+    : '<span class="spinner"></span> กำลังส่ง...';
+
+  const handler = (res) => {
+    if (res.ok) {
+      // เก็บข้อมูล success ไว้ใน state ก่อน navigate
+      state.successPayload = {
+        regId: res.registrationId,
+        cost: res.cost,
+        ocrAmount: res.ocrAmount,
+        ocrStatus: res.ocrStatus,
+        isEdit: state.editMode,
+      };
+      navigate('success', false);
+    } else {
+      alert('❌ ' + res.message);
+      btn.disabled = false;
+      btn.innerHTML = labelDefault;
+    }
+  };
+
+  const failHandler = err => {
+    alert('❌ เกิดข้อผิดพลาด: ' + (err.message || err));
+    btn.disabled = false;
+    btn.innerHTML = labelDefault;
+  };
+
+  if (state.editMode) {
+    google.script.run
+      .withSuccessHandler(handler)
+      .withFailureHandler(failHandler)
+      .updateRegistration(state.editingRegId, state.data);
+  } else {
+    google.script.run
+      .withSuccessHandler(handler)
+      .withFailureHandler(failHandler)
+      .submitRegistration(state.data);
+  }
+}
+
+// ====================================================================
+//  RENDER + BOOTSTRAP
+// ====================================================================
+function render() {
+  const root = document.getElementById('stepRoot');
+  const stepFn = steps[state.currentStep];
+  if (!stepFn) {
+    root.innerHTML = '<div class="card">ขออภัย เกิดข้อผิดพลาด</div>';
+    return;
+  }
+  const step = stepFn();
+  setProgress(step.progress);
+  root.innerHTML = step.html;
+  if (step.onMount) step.onMount();
+
+  // Toggle body class: landing-mode ตอน welcome, form-mode ตอนกรอก
+  if (state.currentStep === 'welcome' || state.currentStep === 'closed') {
+    document.body.classList.add('landing-mode');
+    document.body.classList.remove('form-mode');
+    const pw = document.getElementById('progressWrap');
+    if (pw) pw.style.display = state.currentStep === 'welcome' ? 'none' : '';
+  } else {
+    document.body.classList.remove('landing-mode');
+    document.body.classList.add('form-mode');
+    const pw = document.getElementById('progressWrap');
+    if (pw) pw.style.display = '';
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  // ตั้ง --vh ตามขนาด viewport จริง
+  function setVh() {
+    const h = document.documentElement.clientHeight;
+    document.documentElement.style.setProperty('--vh', h + 'px');
+  }
+  setVh();
+  window.addEventListener('resize', setVh);
+  [50, 200, 500, 1000, 2000, 4000].forEach(ms => setTimeout(setVh, ms));
+  if (window.ResizeObserver) {
+    new ResizeObserver(setVh).observe(document.body);
+  }
+
+  const splash = document.getElementById('splash');
+  const appRoot = document.getElementById('appRoot');
+
+  // Helper: wrap google.script.run as Promise — timeout 3s
+  function callBackend(method, ...args) {
+    return new Promise(resolve => {
+      let timer = setTimeout(() => {
+        console.warn('[Timeout 30s] ' + method);
+        resolve(null);
+      }, 30000); // 30s — Apps Script cold start
+      const runner = google.script.run
+        .withSuccessHandler(res => { clearTimeout(timer); resolve(res); })
+        .withFailureHandler(err => {
+          clearTimeout(timer);
+          console.error('[Backend Error] ' + method + ':', err);
+          resolve(null);
+        });
+      runner[method](...args);
+    });
+  }
+
+  // Helper: preload image — timeout 6s (เหมือนโค้ดเก่า)
+  function preloadImage(src) {
+    return new Promise(resolve => {
+      if (!src) { resolve(null); return; }
+      const img = new Image();
+      img.onload = () => resolve(src);
+      img.onerror = () => resolve(null);
+      img.src = src;
+      setTimeout(() => resolve(null), 6000);
+    });
+  }
+
+  // ===== Phase 1: load all backend data =====
+  Promise.all([
+    callBackend('getConfig'),
+    callBackend('getAssets'),
+    callBackend('getQRImage'),
+  ]).then(([cfg, assets, qrImage]) => {
+    state.qrImage = qrImage || '';
+
+    const isClosed = cfg && !cfg.isOpen;
+    assets = assets || {};
+
+    // ===== Phase 2: preload images (best effort — ไม่ block ถ้าโหลดไม่ได้) =====
+    return Promise.all([
+      preloadImage(assets.bg),
+      preloadImage(assets.bgMobile),
+      preloadImage(assets.logoAloha),
+      preloadImage(assets.logoKu),
+      preloadImage(assets.logoCmmba),
+      preloadImage(assets.logoFlower),
+    ]).then(() => ({ assets, isClosed }));
+  }).then(({ assets, isClosed }) => {
+    // ===== Phase 3: apply assets to DOM (defensive — ใช้ตัวที่มี) =====
+    if (assets.bg) {
+      document.documentElement.style.setProperty('--bg-image-landscape', "url('" + assets.bg + "')");
+    }
+    if (assets.bgMobile) {
+      document.documentElement.style.setProperty('--bg-image-portrait', "url('" + assets.bgMobile + "')");
+    }
+    if (assets.bg || assets.bgMobile) {
+      document.body.classList.add('has-bg-image');
+    }
+
+    const logoAloha = document.getElementById('logoAloha');
+    const logoAlohaWrap = document.getElementById('logoAlohaWrap');
+    if (assets.logoAloha && logoAloha) {
+      logoAloha.src = assets.logoAloha;
+      if (logoAlohaWrap) logoAlohaWrap.style.display = 'inline-block';
+    }
+
+    // logo flower ใน welcome card
+    if (assets.logoFlower) {
+      state.logoFlower = assets.logoFlower;
+    }
+
+    // logo bar (KU + CMMBA)
+    const logoBar = document.getElementById('logoBar');
+    const logoKu = document.getElementById('logoKu');
+    const logoCmmba = document.getElementById('logoCmmba');
+    let hasLogo = false;
+    if (assets.logoKu && logoKu) { logoKu.src = assets.logoKu; hasLogo = true; }
+    if (assets.logoCmmba && logoCmmba) { logoCmmba.src = assets.logoCmmba; hasLogo = true; }
+    if (logoBar && hasLogo) logoBar.style.display = 'flex';
+
+    // Render content
+    if (isClosed) {
+      navigate('closed', false);
+      const pw = document.getElementById('progressWrap');
+      if (pw) pw.style.display = 'none';
+    } else {
+      render();
+    }
+
+    // Recheck viewport size
+    setTimeout(setVh, 50);
+
+    // ===== Phase 4: reveal everything together =====
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (appRoot) appRoot.classList.add('app-ready');
+        if (splash) {
+          splash.classList.add('splash-hide');
+          // ลบ splash หลัง fade out เสร็จ
+          setTimeout(() => splash.remove(), 600);
+        }
+      });
+    });
+  });
+});
+</script>
+<style>
+#qdOverlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:99999; display:flex; align-items:center; justify-content:center; padding:16px; box-sizing:border-box; }
+#qdModal { background:white; border-radius:20px; padding:24px; width:100%; max-width:820px; max-height:94vh; box-sizing:border-box; overflow-y:auto; display:flex; flex-direction:column; gap:14px; }
+#qdHeader { text-align:center; }
+#qdHeader h2 { margin:0 0 4px 0; font-size:22px; color:#0369A1; }
+#qdHeader p { margin:0; font-size:13px; color:#6B7280; }
+#qdBody { display:flex; gap:20px; align-items:center; }
+#qdQrSide { flex:0 0 320px; display:flex; align-items:center; justify-content:center; }
+#qdQrSide img { width:100%; max-width:320px; border-radius:12px; border:1px solid #E5E7EB; display:block; }
+#qdInfoSide { flex:1; display:flex; flex-direction:column; gap:12px; min-width:0; }
+#qdNote { background:#FEF3C7; border-radius:10px; padding:12px 14px; font-size:13px; color:#78350F; line-height:1.6; }
+#qdBtnRow { display:flex; gap:8px; }
+#qdCloseBtn { flex:0 0 80px; padding:13px; font-size:14px; background:#F3F4F6; color:#374151; border:none; border-radius:10px; cursor:pointer; }
+#qdAttachBtn { flex:1; padding:13px; font-size:14px; font-weight:600; background:linear-gradient(135deg,#0EA5E9,#0369A1); color:white; border:none; border-radius:10px; cursor:pointer; }
+#qdStatus { text-align:center; font-size:13px; min-height:16px; }
+@media (max-width: 720px) {
+  #qdBody { flex-direction:column; gap:14px; }
+  #qdQrSide { flex:0 0 auto; }
+  #qdQrSide img { max-width:260px; }
+}
+
+/* footer ตัวใหญ่ขึ้น */
+footer { font-size: 14px !important; opacity: 0.85 !important; }
+
+/* ขยาย welcome card ให้กว้างขึ้น */
+@media (min-width: 901px) and (orientation: landscape) {
+  body.landing-mode { overflow: hidden !important; height: 100vh !important; }
+  body.landing-mode .container { padding-top: 16px !important; padding-bottom: 16px !important; }
+  body.landing-mode .hero-meta-row { margin-bottom: 28px !important; }
+  body.landing-mode .form-column { max-width: min(1500px, 96vw) !important; margin-top: 8px !important; }
+  body.landing-mode .welcome-split { grid-template-columns: 2.5fr 1fr !important; }
+  body.landing-mode .welcome-p { white-space: nowrap; font-size: 15px !important; }
+}
+
+/* ปุ่ม donate ขนาดเท่ากับ register */
+.btn-mega-donate {
+  width: 100% !important;
+  padding: 24px 24px !important;
+  border-radius: 18px !important;
+  align-self: stretch !important;
+}
+.btn-mega-donate .btn-mega-icon { font-size: 24px !important; }
+.btn-mega-donate .btn-mega-label { font-size: 19px !important; }
+@media (max-width: 900px), (orientation: portrait) {
+  .btn-mega-donate { padding: 18px 18px !important; }
+  .btn-mega-donate .btn-mega-icon { font-size: 22px !important; }
+  .btn-mega-donate .btn-mega-label { font-size: 17px !important; }
+}
+
+/* ปุ่ม register — shimmer sweep + glow ring */
+.btn-mega-register {
+  position: relative;
+  z-index: 1;
+}
+.btn-mega-register::before {
+  background: linear-gradient(105deg,
+    transparent 30%,
+    rgba(255,255,255,0.55) 50%,
+    transparent 70%) !important;
+  width: 100%;
+  left: -100%;
+  transition: none !important;
+  animation: shimmerSweep 3.8s ease-in-out infinite;
+}
+.btn-mega-register:hover::before {
+  left: -100% !important;
+}
+@keyframes shimmerSweep {
+  0%   { left: -100%; }
+  55%, 100% { left: 100%; }
+}
+.btn-mega-register::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #F97316, #EF4444, #FB7185, #F97316);
+  background-size: 200% 200%;
+  z-index: -1;
+  filter: blur(10px);
+  opacity: 0.55;
+  animation: glowPulse 2.6s ease-in-out infinite, hueDrift 6s linear infinite;
+  pointer-events: none;
+}
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.97); }
+  50%      { opacity: 0.75; transform: scale(1.05); }
+}
+@keyframes hueDrift {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+</style>
+<script>
+(function() {
+  var T = {
+    Q: String.fromCodePoint(0x1F49D) + ' \u0e42\u0e2d\u0e19\u0e14\u0e48\u0e27\u0e19',
+    T: '\u0e2a\u0e41\u0e01\u0e19 QR \u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e42\u0e2d\u0e19\u0e40\u0e07\u0e34\u0e19',
+    D: '\u0e42\u0e2d\u0e19\u0e44\u0e14\u0e49\u0e40\u0e25\u0e22 \u0e44\u0e21\u0e48\u0e15\u0e49\u0e2d\u0e07\u0e01\u0e23\u0e2d\u0e01\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25',
+    A: String.fromCodePoint(0x1F4CE) + ' \u0e41\u0e19\u0e1a\u0e2a\u0e25\u0e34\u0e1b',
+    C: '\u0e1b\u0e34\u0e14',
+    B: '\u2190 \u0e22\u0e49\u0e2d\u0e19',
+    FT: '\u0e41\u0e19\u0e1a\u0e2a\u0e25\u0e34\u0e1b\u0e01\u0e32\u0e23\u0e42\u0e2d\u0e19',
+    AN: '\u0e44\u0e21\u0e48\u0e1b\u0e23\u0e30\u0e2a\u0e07\u0e04\u0e4c\u0e2d\u0e2d\u0e01\u0e19\u0e32\u0e21',
+    NM: '\u0e1b\u0e23\u0e30\u0e2a\u0e07\u0e04\u0e4c\u0e2d\u0e2d\u0e01\u0e19\u0e32\u0e21',
+    PFN: '\u0e0a\u0e37\u0e48\u0e2d (\u0e44\u0e21\u0e48\u0e1a\u0e31\u0e07\u0e04\u0e31\u0e1a)',
+    PLN: '\u0e19\u0e32\u0e21\u0e2a\u0e01\u0e38\u0e25 (\u0e44\u0e21\u0e48\u0e1a\u0e31\u0e07\u0e04\u0e31\u0e1a)',
+    PNN: '\u0e0a\u0e37\u0e48\u0e2d\u0e40\u0e25\u0e48\u0e19 (\u0e44\u0e21\u0e48\u0e1a\u0e31\u0e07\u0e04\u0e31\u0e1a)',
+    PBN: '\u0e23\u0e38\u0e48\u0e19 (\u0e44\u0e21\u0e48\u0e1a\u0e31\u0e07\u0e04\u0e31\u0e1a)',
+    UP: '\u0e04\u0e25\u0e34\u0e01\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e2a\u0e25\u0e34\u0e1b',
+    UH: 'JPG, PNG, PDF (\u0e44\u0e21\u0e48\u0e40\u0e01\u0e34\u0e19 10 MB)',
+    SAVE: String.fromCodePoint(0x1F4BE) + ' \u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01',
+    QL: '\u0e01\u0e33\u0e25\u0e31\u0e07\u0e42\u0e2b\u0e25\u0e14 QR...',
+    LD: '\u0e01\u0e33\u0e25\u0e31\u0e07\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01...',
+    OK: '\u0e02\u0e2d\u0e1a\u0e04\u0e38\u0e13\u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a\u0e01\u0e32\u0e23\u0e2a\u0e19\u0e31\u0e1a\u0e2a\u0e19\u0e38\u0e19',
+    ESZ: '\u0e44\u0e1f\u0e25\u0e4c\u0e43\u0e2b\u0e0d\u0e48\u0e40\u0e01\u0e34\u0e19 10 MB',
+    ER: '\u0e40\u0e01\u0e34\u0e14\u0e02\u0e49\u0e2d\u0e1c\u0e34\u0e14\u0e1e\u0e25\u0e32\u0e14: ',
+    NH: '\u0e2b\u0e25\u0e31\u0e07\u0e08\u0e32\u0e01\u0e42\u0e2d\u0e19\u0e40\u0e2a\u0e23\u0e47\u0e08:',
+    N1: '\u2022 \u0e2b\u0e32\u0e01\u0e15\u0e49\u0e2d\u0e07\u0e01\u0e32\u0e23\u0e43\u0e2b\u0e49\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e22\u0e2d\u0e14 \u0e01\u0e14\u0e1b\u0e38\u0e48\u0e21\u0e41\u0e19\u0e1a\u0e2a\u0e25\u0e34\u0e1b',
+    N2: '\u2022 \u0e2b\u0e32\u0e01\u0e44\u0e21\u0e48\u0e15\u0e49\u0e2d\u0e07\u0e01\u0e32\u0e23\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01 \u0e1b\u0e34\u0e14\u0e2b\u0e19\u0e49\u0e32\u0e44\u0e14\u0e49\u0e40\u0e25\u0e22',
+    BAHT: ' \u0e1a\u0e32\u0e17',
+    OCR: '\ud83d\udd0d \u0e01\u0e33\u0e25\u0e31\u0e07\u0e2d\u0e48\u0e32\u0e19\u0e22\u0e2d\u0e14\u0e2d\u0e31\u0e15\u0e42\u0e19\u0e21\u0e31\u0e15\u0e34...',
+    OWAR: '\u26a0\ufe0f \u0e2d\u0e48\u0e32\u0e19\u0e22\u0e2d\u0e14\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49 \u2014 \u0e23\u0e30\u0e1a\u0e1a\u0e08\u0e30\u0e15\u0e23\u0e27\u0e08\u0e2d\u0e35\u0e01\u0e04\u0e23\u0e31\u0e49\u0e07\u0e2b\u0e25\u0e31\u0e07\u0e2a\u0e48\u0e07',
+    WH: '\u0e2b\u0e21\u0e32\u0e22\u0e40\u0e2b\u0e15\u0e38:',
+    WB: '\u0e01\u0e32\u0e23\u0e2a\u0e33\u0e23\u0e2d\u0e07\u0e2b\u0e49\u0e2d\u0e07\u0e1e\u0e31\u0e01\u0e02\u0e36\u0e49\u0e19\u0e2d\u0e22\u0e39\u0e48\u0e01\u0e31\u0e1a\u0e08\u0e33\u0e19\u0e27\u0e19\u0e2b\u0e49\u0e2d\u0e07\u0e17\u0e35\u0e48\u0e08\u0e31\u0e14\u0e40\u0e15\u0e23\u0e35\u0e22\u0e21\u0e44\u0e14\u0e49',
+    W2: '\u0e23\u0e38\u0e48\u0e19\u0e1e\u0e35\u0e48 \u00b7 \u0e23\u0e38\u0e48\u0e19\u0e19\u0e49\u0e2d\u0e07 \u00b7 \u0e28\u0e34\u0e29\u0e22\u0e4c\u0e40\u0e01\u0e48\u0e32 \u00b7 \u0e2d\u0e32\u0e08\u0e32\u0e23\u0e22\u0e4c\u0e41\u0e25\u0e30\u0e1a\u0e38\u0e04\u0e25\u0e32\u0e01\u0e23 \u2014 \u0e1f\u0e23\u0e35\u0e04\u0e48\u0e32\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22',
+    W3: '*\u0e01\u0e23\u0e13\u0e35\u0e1e\u0e31\u0e01\u0e04\u0e19\u0e40\u0e14\u0e35\u0e22\u0e27 (\u0e2b\u0e49\u0e2d\u0e07\u0e40\u0e14\u0e35\u0e48\u0e22\u0e27) \u0e40\u0e1e\u0e34\u0e48\u0e21 1,000 \u0e1a\u0e32\u0e17',
+    W4: '*(\u0e40\u0e09\u0e1e\u0e32\u0e30 \u0e23\u0e38\u0e48\u0e191-32) \u0e01\u0e23\u0e13\u0e35\u0e21\u0e35\u0e1c\u0e39\u0e49\u0e15\u0e34\u0e14\u0e15\u0e32\u0e21\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e17\u0e48\u0e32\u0e19\u0e25\u0e30 1,000 \u0e1a\u0e32\u0e17 \u00b7 \u0e40\u0e14\u0e47\u0e01\u0e2d\u0e32\u0e22\u0e38\u0e44\u0e21\u0e48\u0e40\u0e01\u0e34\u0e19 12 \u0e1b\u0e35 \u0e1f\u0e23\u0e35',
+    CAL: '\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e25\u0e07\u0e1b\u0e0f\u0e34\u0e17\u0e34\u0e19'
+  };
+
+  var qrImg = null, qrCbs = [];
+  google.script.run
+    .withSuccessHandler(function(q) { qrImg = q || ''; qrCbs.forEach(function(c){c(qrImg);}); qrCbs = []; })
+    .withFailureHandler(function() { qrImg = ''; qrCbs.forEach(function(c){c('');}); qrCbs = []; })
+    .getQRImage();
+
+  function el(tag, css, txt) {
+    var e = document.createElement(tag);
+    if (css) e.style.cssText = css;
+    if (txt) e.textContent = txt;
+    return e;
+  }
+  function setQr(box, q) {
+    box.innerHTML = '';
+    if (q) { var i = document.createElement('img'); i.src = q; box.appendChild(i); }
+    else { box.textContent = '(QR not available)'; box.style.color = '#9CA3AF'; }
+  }
+  function loadQr(box) {
+    if (qrImg !== null) { setQr(box, qrImg); return; }
+    box.textContent = T.QL; box.style.color = '#9CA3AF';
+    qrCbs.push(function(q) { setQr(box, q); });
+  }
+
+  function scanQR(dataUrl, cb) {
+    if (typeof jsQR === 'undefined' || typeof parseEMVCo === 'undefined') { cb(null); return; }
+    var img = new Image();
+    img.onload = function() {
+      var W = img.width, H = img.height;
+      var sz = [W, 1600, 1200];
+      for (var i = 0; i < sz.length; i++) {
+        if (sz[i] <= 0) continue;
+        var r = sz[i] / W, w = Math.round(W*r), h = Math.round(H*r);
+        var c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        var x = c.getContext('2d');
+        x.drawImage(img, 0, 0, w, h);
+        var d = x.getImageData(0, 0, w, h);
+        var code = jsQR(d.data, d.width, d.height, { inversionAttempts: 'attemptBoth' });
+        if (code) { cb(parseEMVCo(code.data)); return; }
+      }
+      cb(null);
+    };
+    img.onerror = function() { cb(null); };
+    img.src = dataUrl;
+  }
+
+  function bigNum(dataUrl) {
+    return new Promise(function(res) {
+      if (typeof getTesseractWorker !== 'function') { res(0); return; }
+      getTesseractWorker('full').then(function(w) { return w.recognize(dataUrl); })
+        .then(function(r) {
+          if (!r || !r.data || !r.data.words) { res(0); return; }
+          var d = [], i = [];
+          r.data.words.forEach(function(wd) {
+            if (!wd.bbox) return;
+            var t = wd.text.replace(/[๐-๙]/g, function(c){return c.charCodeAt(0)-0x0E50;}).replace(/[^\d.,]/g, '');
+            var n = parseFloat(t.replace(/,/g, ''));
+            if (isNaN(n) || n > 10000000) return;
+            var h = wd.bbox.y1 - wd.bbox.y0;
+            if (/^\d[\d,]*\.\d{2}$/.test(t) && n >= 1) d.push({ n: n, h: h });
+            else if (/^\d[\d,]*$/.test(t) && n >= 10) i.push({ n: n, h: h });
+          });
+          var p = d.length ? d : i;
+          if (!p.length) { res(0); return; }
+          p.sort(function(a,b){return b.h-a.h;});
+          res(p[0].n);
+        }).catch(function() { res(0); });
+    });
+  }
+
+  if (typeof ocrSlipAmount === 'function' && !window._oP) {
+    window._oP = 1;
+    var _oo = window.ocrSlipAmount;
+    window.ocrSlipAmount = function(u) {
+      return Promise.all([_oo(u), bigNum(u)]).then(function(rs) {
+        var a = (rs[0] && rs[0].amount) || 0, b = rs[1] || 0;
+        var p = (a > 0 && b > 0) ? (Math.abs(a-b) < 0.5 ? a : b) : (a || b);
+        return { amount: p, text: (rs[0] && rs[0].text) || '' };
+      });
+    };
+  }
+
+  if (typeof calcCost === 'function' && !window._cP) {
+    window._cP = 1;
+    window.calcCost = function() {
+      var cost = 0;
+      var g = state.data.group, rt = state.data.roomType;
+      var st = (parseFloat(state.data.supportPersonal) || 0) + (parseFloat(state.data.supportBatch) || 0);
+      if (g === 'faculty' || g === 'senior33' || g === 'student34') return st;
+      if (g === 'alumni' && rt === 'single') {
+        if (state.data.hasCompanion && state.data.companion) {
+          (state.data.companion.list || []).forEach(function(p) {
+            if (p.type === '\u0e1c\u0e39\u0e49\u0e43\u0e2b\u0e0d\u0e48') cost += 1000;
+            else if (p.type === '\u0e40\u0e14\u0e47\u0e01' && p.extraBed) cost += 1000;
+          });
+        } else cost += 1000;
+      }
+      return cost + st;
+    };
+  }
+
+  function openPdpa() {
+    if (document.getElementById('pdOv')) return;
+    var ov = el('div', 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;');
+    ov.id = 'pdOv';
+    var md = el('div', 'background:white;border-radius:16px;padding:28px;width:100%;max-width:600px;max-height:85vh;overflow-y:auto;');
+    md.appendChild(el('h2', 'margin:0 0 18px;font-size:22px;color:#0369A1;text-align:center;', String.fromCodePoint(0x1F4CB) + ' \u0e19\u0e42\u0e22\u0e1a\u0e32\u0e22\u0e04\u0e27\u0e32\u0e21\u0e40\u0e1b\u0e47\u0e19\u0e2a\u0e48\u0e27\u0e19\u0e15\u0e31\u0e27'));
+    function sec(h, b) {
+      var d = el('div', 'margin-bottom:14px;');
+      d.appendChild(el('div', 'font-weight:700;color:#0369A1;font-size:14px;margin-bottom:4px;', h));
+      d.appendChild(el('div', 'font-size:13px;color:#374151;line-height:1.7;', b));
+      md.appendChild(d);
+    }
+    sec('\u0e40\u0e01\u0e47\u0e1a\u0e2d\u0e30\u0e44\u0e23\u0e1a\u0e49\u0e32\u0e07?', '\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e1e\u0e37\u0e49\u0e19\u0e10\u0e32\u0e19 \u00b7 \u0e40\u0e25\u0e02\u0e1a\u0e31\u0e15\u0e23\u0e1b\u0e23\u0e30\u0e0a\u0e32\u0e0a\u0e19 (\u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a\u0e17\u0e33\u0e1b\u0e23\u0e30\u0e01\u0e31\u0e19) \u00b7 \u0e2a\u0e25\u0e34\u0e1b\u0e42\u0e2d\u0e19\u0e40\u0e07\u0e34\u0e19');
+    sec('\u0e43\u0e0a\u0e49\u0e17\u0e33\u0e2d\u0e30\u0e44\u0e23?', '\u0e08\u0e31\u0e14\u0e07\u0e32\u0e19 Aloha Party \u00b7 \u0e08\u0e2d\u0e07\u0e2b\u0e49\u0e2d\u0e07\u0e1e\u0e31\u0e01 \u00b7 \u0e17\u0e33\u0e1b\u0e23\u0e30\u0e01\u0e31\u0e19\u0e01\u0e32\u0e23\u0e40\u0e14\u0e34\u0e19\u0e17\u0e32\u0e07');
+    sec('\u0e40\u0e01\u0e47\u0e1a\u0e19\u0e32\u0e19\u0e41\u0e04\u0e48\u0e44\u0e2b\u0e19?', '\u0e25\u0e1a\u0e2b\u0e25\u0e31\u0e07\u0e08\u0e1a\u0e07\u0e32\u0e19 90 \u0e27\u0e31\u0e19 \u00b7 \u0e40\u0e25\u0e02\u0e1a\u0e31\u0e15\u0e23\u0e1b\u0e23\u0e30\u0e0a\u0e32\u0e0a\u0e19\u0e25\u0e1a\u0e17\u0e31\u0e19\u0e17\u0e35\u0e2b\u0e25\u0e31\u0e07\u0e2d\u0e2d\u0e01\u0e1b\u0e23\u0e30\u0e01\u0e31\u0e19');
+    sec('\u0e2d\u0e22\u0e32\u0e01\u0e41\u0e01\u0e49/\u0e25\u0e1a\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25?', '\u0e17\u0e31\u0e01\u0e17\u0e35\u0e21\u0e07\u0e32\u0e19\u0e17\u0e32\u0e07 LINE \u0e44\u0e14\u0e49\u0e40\u0e25\u0e22 \u0e22\u0e34\u0e19\u0e14\u0e35\u0e14\u0e39\u0e41\u0e25\u0e43\u0e2b\u0e49\u0e17\u0e38\u0e01\u0e40\u0e23\u0e37\u0e48\u0e2d\u0e07');
+    var cb = el('button', 'margin-top:8px;width:100%;padding:12px;font-size:14px;background:#F3F4F6;color:#374151;border:none;border-radius:10px;cursor:pointer;', T.C);
+    cb.onclick = function() { ov.remove(); };
+    md.appendChild(cb);
+    ov.appendChild(md);
+    ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
+    document.body.appendChild(ov);
+  }
+
+  function openCal() {
+    if (document.getElementById('calOv')) return;
+    var ov = el('div', 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;');
+    ov.id = 'calOv';
+    var md = el('div', 'background:white;border-radius:20px;padding:28px;width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px;');
+    md.appendChild(el('h2', 'margin:0;font-size:22px;color:#0369A1;text-align:center;', T.CAL));
+    var info = el('div', 'text-align:center;font-size:14px;color:#6B7280;line-height:1.6;');
+    info.appendChild(el('div', 'font-weight:600;color:#0F172A;', 'Aloha Party CMMBA 34'));
+    info.appendChild(el('div', null, '1\u20132 \u0e2a.\u0e04. 2569 \u00b7 Oakwood \u0e28\u0e23\u0e35\u0e23\u0e32\u0e0a\u0e32'));
+    md.appendChild(info);
+    var gb = el('button', 'padding:14px;font-size:15px;font-weight:600;background:linear-gradient(135deg,#0EA5E9,#0369A1);color:white;border:none;border-radius:10px;cursor:pointer;', '\ud83d\udcc5  Google Calendar');
+    gb.onclick = function() {
+      window.open('https://calendar.google.com/calendar/render?action=TEMPLATE&text=Aloha%20Party%20CMMBA%2034&dates=20260801/20260803&location=Oakwood%20Hotel%20%26%20Residence%20Sri%20Racha&details=Freshmen%20Welcoming%20Ceremony', '_blank');
+    };
+    md.appendChild(gb);
+    var ib = el('button', 'padding:14px;font-size:15px;font-weight:600;background:linear-gradient(135deg,#F97316,#EF4444);color:white;border:none;border-radius:10px;cursor:pointer;', '\ud83d\udce5  Apple / Outlook (.ics)');
+    ib.onclick = function() {
+      var ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//CMMBA//Aloha Party//TH\r\nBEGIN:VEVENT\r\nUID:aloha-party-cmmba-34@cmmba.ku\r\nDTSTART;VALUE=DATE:20260801\r\nDTEND;VALUE=DATE:20260803\r\nSUMMARY:Aloha Party CMMBA 34\r\nDESCRIPTION:Freshmen Welcoming Ceremony\r\nLOCATION:Oakwood Hotel & Residence Sri Racha\r\nEND:VEVENT\r\nEND:VCALENDAR';
+      var b = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(b);
+      a.download = 'aloha-party-cmmba-34.ics';
+      a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+    };
+    md.appendChild(ib);
+    var cb = el('button', 'padding:12px;font-size:14px;background:#F3F4F6;color:#374151;border:none;border-radius:10px;cursor:pointer;', T.C);
+    cb.onclick = function() { ov.remove(); };
+    md.appendChild(cb);
+    ov.appendChild(md);
+    ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
+    document.body.appendChild(ov);
+  }
+
+  function openQD() {
+    if (document.getElementById('qdOverlay')) return;
+    var ov = el('div'); ov.id = 'qdOverlay';
+    var md = el('div'); md.id = 'qdModal';
+    var hd = el('div'); hd.id = 'qdHeader';
+    hd.appendChild(el('h2', null, T.T));
+    hd.appendChild(el('p', null, T.D));
+    md.appendChild(hd);
+    var bd = el('div'); bd.id = 'qdBody';
+    var qs = el('div'); qs.id = 'qdQrSide'; loadQr(qs); bd.appendChild(qs);
+    var info = el('div'); info.id = 'qdInfoSide';
+    var note = el('div'); note.id = 'qdNote';
+    note.appendChild(el('strong', null, T.NH));
+    note.appendChild(el('br'));
+    note.appendChild(document.createTextNode(T.N1));
+    note.appendChild(el('br'));
+    note.appendChild(document.createTextNode(T.N2));
+    info.appendChild(note);
+    var fi = el('input'); fi.type = 'file'; fi.accept = 'image/*,application/pdf'; fi.style.display = 'none';
+    info.appendChild(fi);
+    var br = el('div'); br.id = 'qdBtnRow';
+    var cb = el('button', null, T.C); cb.id = 'qdCloseBtn';
+    cb.onclick = function() { ov.remove(); };
+    br.appendChild(cb);
+    var ab = el('button', null, T.A); ab.id = 'qdAttachBtn';
+    br.appendChild(ab);
+    info.appendChild(br);
+    var st = el('div'); st.id = 'qdStatus';
+    info.appendChild(st);
+    bd.appendChild(info);
+    md.appendChild(bd);
+
+    function setSt(t, c) { st.textContent = t; if (c) st.style.color = c; }
+
+    ab.onclick = function() {
+      qs.style.display = 'none';
+      note.style.display = 'none';
+      ab.style.display = 'none';
+      cb.textContent = T.B;
+      var f = el('div', 'display:flex;flex-direction:column;gap:10px;'); f.id = 'qdForm';
+      f.appendChild(el('h3', 'margin:0;font-size:20px;color:#0369A1;text-align:center;', T.FT));
+
+      function rd(v, lb, ck) {
+        var l = el('label', 'display:flex;align-items:center;gap:10px;padding:12px 14px;border:1.5px solid #E5E7EB;border-radius:10px;cursor:pointer;font-size:14px;');
+        var r = el('input'); r.type = 'radio'; r.name = 'qda'; r.value = v; r.checked = ck;
+        l.appendChild(r); l.appendChild(document.createTextNode(' ' + lb));
+        f.appendChild(l); return r;
+      }
+      var rA = rd('a', T.AN, true);
+      var rN = rd('n', T.NM, false);
+      var nb = el('div', 'display:none;flex-direction:column;gap:8px;');
+      function ip(ph) {
+        var i = el('input', 'padding:11px 13px;border:1.5px solid #E5E7EB;border-radius:10px;font-size:14px;font-family:inherit;');
+        i.placeholder = ph; nb.appendChild(i); return i;
+      }
+      var fn = ip(T.PFN), ln = ip(T.PLN), nn = ip(T.PNN), bn = ip(T.PBN);
+      f.appendChild(nb);
+      rA.onchange = function() { nb.style.display = 'none'; };
+      rN.onchange = function() { nb.style.display = 'flex'; };
+
+      var ul = el('label');
+      ul.className = 'upload-box';
+      ul.style.cursor = 'pointer';
+      var ui = el('div', null, String.fromCodePoint(0x1F9FE)); ui.className = 'upload-icon';
+      var ut = el('div'); ut.className = 'upload-text';
+      ut.appendChild(el('strong', null, T.UP));
+      var uh = el('div', 'font-size:12px;color:#6B7280;margin-top:4px;', T.UH);
+      var ufn = el('div'); ufn.className = 'upload-filename';
+      ul.appendChild(ui); ul.appendChild(ut); ul.appendChild(uh); ul.appendChild(ufn);
+      ul.onclick = function(e) { e.preventDefault(); fi.click(); };
+      f.appendChild(ul);
+
+      var sb = el('button', 'padding:14px;font-size:16px;font-weight:600;background:linear-gradient(135deg,#F97316,#EF4444);color:white;border:none;border-radius:10px;cursor:pointer;margin-top:4px;opacity:0.5;', T.SAVE);
+      sb.disabled = true;
+      f.appendChild(sb);
+
+      info.insertBefore(f, br);
+
+      var slip = null, qrAmt = null, qrRef = null;
+      var setAmt = function(a) {
+        qrAmt = a;
+        ufn.textContent = String.fromCodePoint(0x2713) + ' ' + slip.name + ' \u00b7 ' + a.toLocaleString() + T.BAHT;
+      };
+
+      fi.onchange = function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) { setSt(T.ESZ, '#DC2626'); return; }
+        var r = new FileReader();
+        r.onload = function(ev) {
+          slip = { name: file.name, mimeType: file.type, data: ev.target.result.split(',')[1] };
+          ufn.textContent = String.fromCodePoint(0x2713) + ' ' + file.name;
+          ul.classList.add('has-file');
+          sb.disabled = false; sb.style.opacity = '1';
+          setSt('', '');
+          if (file.type.indexOf('image/') === 0) {
+            scanQR(ev.target.result, function(p) {
+              if (p) {
+                qrRef = p.transRef || null;
+                if (p.amount != null) { setAmt(p.amount); return; }
+              }
+              if (typeof ocrSlipAmount === 'function') {
+                setSt(T.OCR, '#6B7280');
+                ocrSlipAmount(ev.target.result).then(function(o) {
+                  var a = (o && o.amount) || 0;
+                  if (a > 0) { setAmt(a); setSt('', ''); }
+                  else { setSt(T.OWAR, '#92400e'); }
+                }).catch(function() { setSt('', ''); });
+              }
+            });
+          }
+        };
+        r.readAsDataURL(file);
+      };
+
+      sb.onclick = function() {
+        if (!slip) return;
+        sb.disabled = true; sb.style.opacity = '0.5';
+        setSt(T.LD, '#6B7280');
+        var p = { slip: slip };
+        if (qrAmt != null) p.slipQrAmount = qrAmt;
+        if (qrRef) p.slipQrTransRef = qrRef;
+        if (rN.checked) {
+          p.donor = {
+            firstName: (fn.value||'').trim(),
+            lastName: (ln.value||'').trim(),
+            nickname: (nn.value||'').trim(),
+            batch: (bn.value||'').trim()
+          };
+        }
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res && res.ok) {
+              while (md.firstChild) md.removeChild(md.firstChild);
+              var bx = el('div', 'text-align:center;padding:32px 16px;');
+              bx.appendChild(el('div', 'font-size:64px;margin-bottom:12px;', String.fromCodePoint(0x1F33A)));
+              bx.appendChild(el('h2', 'font-family:Pacifico,cursive;font-size:36px;color:#075985;margin:0 0 12px;', 'Mahalo!'));
+              bx.appendChild(el('p', 'color:#475569;font-size:15px;line-height:1.7;margin:0 0 16px;', T.OK));
+              var amt = (res && res.ocrAmount) || 0;
+              if (amt > 0) bx.appendChild(el('div', 'font-size:24px;font-weight:700;color:#075985;margin:8px 0 20px;', amt.toLocaleString() + T.BAHT));
+              var cb2 = el('button', 'padding:12px 32px;font-size:15px;background:#F3F4F6;color:#374151;border:none;border-radius:10px;cursor:pointer;', T.C);
+              cb2.onclick = function() { ov.remove(); };
+              bx.appendChild(cb2);
+              md.appendChild(bx);
+            } else {
+              setSt(T.ER + ((res&&res.message)||''), '#DC2626');
+              sb.disabled = false; sb.style.opacity = '1';
+            }
+          })
+          .withFailureHandler(function(err) {
+            setSt(T.ER + (err.message||err), '#DC2626');
+            sb.disabled = false; sb.style.opacity = '1';
+          })
+          .submitQuickDonation(p);
+      };
+    };
+
+    ov.appendChild(md);
+    ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
+    document.body.appendChild(ov);
+  }
+
+  function inject() {
+    var ls = document.querySelectorAll('.step-label');
+    for (var i = 0; i < ls.length; i++) {
+      var card = ls[i].closest('.card');
+      if (!card) continue;
+      var h2 = card.querySelector('h2');
+      if (!h2) continue;
+      if (h2.textContent.indexOf('\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e27\u0e34\u0e18\u0e35') < 0) continue;
+      if (card.querySelector('[data-quick-donate]')) return;
+      var fb = card.querySelector('.btn.btn-primary.btn-hero');
+      if (!fb) return;
+      var b = document.createElement('button');
+      b.setAttribute('data-quick-donate', '1');
+      b.className = 'btn btn-primary btn-hero';
+      b.style.cssText = 'padding:20px;font-size:17px;display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#0EA5E9 0%,#0369A1 100%);';
+      b.textContent = T.Q;
+      b.onclick = function(e) { e.preventDefault(); openQD(); };
+      fb.parentNode.insertBefore(b, fb);
+      return;
+    }
+  }
+
+  function patchN() {
+    var ns = document.querySelectorAll('.welcome-card .notice');
+    for (var i = 0; i < ns.length; i++) {
+      var n = ns[i];
+      if (n.getAttribute('data-patched') === '1') continue;
+      if (n.textContent.indexOf('\u0e2b\u0e21\u0e32\u0e22\u0e40\u0e2b\u0e15\u0e38') < 0) continue;
+      n.setAttribute('data-patched', '1');
+      n.style.textAlign = 'center';
+      n.innerHTML = '';
+      var l1 = el('div', 'margin-bottom:14px;font-size:15px;line-height:1.75;');
+      l1.appendChild(el('strong', 'font-size:16px;color:#9a3412;', T.WH));
+      l1.appendChild(document.createTextNode(' ' + T.WB));
+      n.appendChild(l1);
+      var l2 = el('div', 'margin-bottom:14px;padding:10px 12px;background:rgba(255,255,255,0.5);border-radius:8px;font-size:16px;line-height:1.6;');
+      l2.appendChild(el('strong', 'color:#075985;', T.W2));
+      n.appendChild(l2);
+      n.appendChild(el('div', 'font-size:13.5px;color:#92400e;line-height:1.85;margin-top:4px;', T.W3));
+      n.appendChild(el('div', 'font-size:13.5px;color:#92400e;line-height:1.85;', T.W4));
+    }
+  }
+
+  function tryAll() {
+    inject();
+    patchN();
+    var wpBr = document.querySelector('.welcome-p br');
+    if (wpBr && wpBr.parentNode && !wpBr.parentNode.getAttribute('data-wbr')) {
+      wpBr.parentNode.setAttribute('data-wbr','1');
+      wpBr.replaceWith(' ');
+    }
+    var wc = document.querySelector('.welcome-card');
+    if (wc && !wc.getAttribute('data-fr')) {
+      var fl = wc.querySelector('.welcome-flower');
+      var wh = wc.querySelector('.welcome-h');
+      if (fl && wh) {
+        wc.setAttribute('data-fr','1');
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px;';
+        var fl2 = fl.cloneNode(true);
+        fl.parentNode.insertBefore(row, fl);
+        row.appendChild(fl);
+        row.appendChild(wh);
+        row.appendChild(fl2);
+        fl.style.cssText = 'width:52px;margin:0;display:block;';
+        fl2.style.cssText = 'width:52px;margin:0;display:block;transform:scaleX(-1);';
+        wh.style.margin = '0';
+      }
+    }
+    var ar = document.getElementById('logoAlohaWrap');
+    var tr = document.querySelector('.hero-tag-row');
+    if (ar && tr && !ar.getAttribute('data-moved')) {
+      tr.parentNode.insertBefore(ar, tr);
+      ar.setAttribute('data-moved', '1');
+      ar.style.display = 'block';
+      ar.style.textAlign = 'center';
+      ar.style.width = '100%';
+      ar.style.margin = '12px auto 8px';
+      var aim = ar.querySelector('img');
+      if (aim) aim.style.cssText = 'display:block;margin:0 auto;width:min(420px,60vw);max-width:100%;';
+    }
+    document.querySelectorAll('.step-label,.step-title').forEach(function(e){var t=e.textContent;if(t.indexOf('\u0e1a\u0e23\u0e34\u0e08\u0e32\u0e04')>=0){e.textContent=t.replace(/\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e27\u0e34\u0e18\u0e35\u0e1a\u0e23\u0e34\u0e08\u0e32\u0e04/g,'\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e27\u0e34\u0e18\u0e35\u0e2a\u0e19\u0e31\u0e1a\u0e2a\u0e19\u0e38\u0e19').replace(/\u0e1a\u0e23\u0e34\u0e08\u0e32\u0e04/g,'\u0e2a\u0e19\u0e31\u0e1a\u0e2a\u0e19\u0e38\u0e19\u0e04\u0e48\u0e32\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21');}});
+    document.querySelectorAll('.btn-mega-donate .btn-mega-label').forEach(function(e){var t=e.textContent;if(t.indexOf('\u0e1a\u0e23\u0e34\u0e08\u0e32\u0e04')>=0){e.textContent=t.replace(/\u0e1a\u0e23\u0e34\u0e08\u0e32\u0e04/g,'\u0e2a\u0e19\u0e31\u0e1a\u0e2a\u0e19\u0e38\u0e19');}});
+    var ft = document.querySelector('footer');
+    if (ft && ft.textContent.indexOf('CMMBA 33') < 0 && ft.textContent.indexOf('CMMBA') >= 0) {
+      ft.textContent = ft.textContent.replace('CMMBA', 'CMMBA 33');
+    }
+    if (ft && !ft.querySelector('.pd-link')) {
+      ft.appendChild(document.createTextNode(' \u00b7 '));
+      var pl = document.createElement('span');
+      pl.className = 'pd-link';
+      pl.style.cssText = 'cursor:pointer;';
+      pl.textContent = 'Policy';
+      pl.onclick = openPdpa;
+      ft.appendChild(pl);
+    }
+    document.querySelectorAll('.hero-meta-row span').forEach(function(s) {
+      if (s.textContent.indexOf('Oakwood') >= 0 && !s.getAttribute('data-link')) {
+        s.setAttribute('data-link', '1');
+        s.style.cursor = 'pointer';
+        s.onclick = function() {
+          window.open('https://www.discoverasr.com/th/oakwood/thailand/oakwood-hotel-residence-sri-racha', '_blank');
+        };
+      }
+      if (s.textContent.indexOf('\u0e2a.\u0e04.') >= 0 && !s.getAttribute('data-cal')) {
+        s.setAttribute('data-cal', '1');
+        s.style.cursor = 'pointer';
+        s.onclick = openCal;
+      }
+      if (s.textContent.indexOf('Dress') >= 0 && !s.getAttribute('data-dr')) {
+        s.setAttribute('data-dr', '1');
+        s.style.cursor = 'pointer';
+        s.onclick = function() {
+          if (document.getElementById('drOv')) return;
+          var ov = el('div', 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;');
+          ov.id = 'drOv';
+          var md = el('div', 'background:white;border-radius:20px;padding:24px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px;');
+          md.appendChild(el('h2', 'margin:0;font-size:20px;color:#0369A1;text-align:center;', '\ud83c\udf3a \u0e44\u0e2d\u0e40\u0e14\u0e35\u0e22\u0e0a\u0e38\u0e14\u0e2e\u0e32\u0e27\u0e32\u0e22'));
+          var pb = el('button', 'padding:13px;font-size:14px;font-weight:600;background:#E60023;color:white;border:none;border-radius:10px;cursor:pointer;', '\ud83d\udccc Pinterest');
+          pb.onclick = function() { window.open('https://www.pinterest.com/search/pins/?q=hawaiian+aloha+party+outfit', '_blank'); };
+          md.appendChild(pb);
+          var gb2 = el('button', 'padding:13px;font-size:14px;font-weight:600;background:#4285F4;color:white;border:none;border-radius:10px;cursor:pointer;', '\ud83d\udd0d Google Images');
+          gb2.onclick = function() { window.open('https://www.google.com/search?q=hawaiian+aloha+party+outfit&tbm=isch', '_blank'); };
+          md.appendChild(gb2);
+          var cb3 = el('button', 'padding:11px;font-size:13px;background:#F3F4F6;color:#374151;border:none;border-radius:10px;cursor:pointer;', T.C);
+          cb3.onclick = function() { ov.remove(); };
+          md.appendChild(cb3);
+          ov.appendChild(md);
+          ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
+          document.body.appendChild(ov);
+        };
+      }
+    });
+    document.querySelectorAll('.card').forEach(function(c) {
+      if (c.getAttribute('data-home') === '1') return;
+      if (!c.querySelector('.step-label')) return;
+      if (c.querySelector('.btn-link-edit')) { c.setAttribute('data-home','1'); return; }
+      if (c.classList.contains('welcome-card')) return;
+      c.setAttribute('data-home','1');
+      var w = document.createElement('div');
+      w.style.cssText = 'text-align:center;margin-top:14px;';
+      var b = document.createElement('button');
+      b.className = 'btn-link-edit';
+      b.textContent = '\ud83c\udfe0 \u0e01\u0e25\u0e31\u0e1a\u0e2a\u0e39\u0e48\u0e2b\u0e19\u0e49\u0e32\u0e2b\u0e25\u0e31\u0e01';
+      b.onclick = function() { if (typeof goToHome === 'function') goToHome(); };
+      w.appendChild(b);
+      c.appendChild(w);
+    });
+  }
+
+  if (typeof MutationObserver !== 'undefined') {
+    new MutationObserver(function() { tryAll(); }).observe(document.body, { childList: true, subtree: true });
+  }
+  setTimeout(tryAll, 100);
+  setTimeout(tryAll, 500);
+  setTimeout(tryAll, 1500);
+})();
+</script>
+</body>
