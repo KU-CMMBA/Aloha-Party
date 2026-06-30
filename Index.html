@@ -4128,6 +4128,13 @@ footer { font-size: 14px !important; opacity: 0.85 !important; }
     .withFailureHandler(function() { qrImg = ''; qrCbs.forEach(function(c){c('');}); qrCbs = []; })
     .getQRImage();
 
+  // Prefetch URL หน้า Display (live) — ใช้ตอนกดลิงก์ลับใน footer
+  var _displayUrl = null;
+  google.script.run
+    .withSuccessHandler(function(u) { _displayUrl = u || ''; })
+    .withFailureHandler(function() { _displayUrl = ''; })
+    .getDisplayUrl();
+
   function el(tag, css, txt) {
     var e = document.createElement(tag);
     if (css) e.style.cssText = css;
@@ -4245,6 +4252,51 @@ footer { font-size: 14px !important; opacity: 0.85 !important; }
     ov.appendChild(md);
     ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
     document.body.appendChild(ov);
+  }
+
+  function openDisplayNow() {
+    if (_displayUrl) { window.open(_displayUrl, '_blank'); return; }
+    // ยังไม่ได้ URL → ดึงสดแล้วเปิด
+    google.script.run
+      .withSuccessHandler(function(u) { if (u) window.open(u, '_blank'); else window.alert('ไม่พบลิงก์หน้า Display'); })
+      .withFailureHandler(function(err) { window.alert('เกิดข้อผิดพลาด: ' + (err.message || err)); })
+      .getDisplayUrl();
+  }
+
+  // ลิงก์ลับไปหน้า Display — ต้องใส่รหัสก่อน
+  function openDisplayGate() {
+    if (document.getElementById('dgOv')) return;
+    var ov = el('div', 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;');
+    ov.id = 'dgOv';
+    var md = el('div', 'background:white;border-radius:20px;padding:28px;width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px;');
+    md.appendChild(el('h2', 'margin:0;font-size:20px;color:#0369A1;text-align:center;', '🔒 เข้าสู่หน้าจอ Display'));
+    md.appendChild(el('p', 'margin:0;font-size:13px;color:#6B7280;text-align:center;', 'กรอกรหัสผ่านสำหรับเจ้าหน้าที่'));
+    var inp = el('input', 'padding:14px;border:1.5px solid #E5E7EB;border-radius:10px;font-size:22px;text-align:center;letter-spacing:8px;font-weight:700;font-family:inherit;');
+    inp.type = 'password'; inp.placeholder = '••••'; inp.maxLength = 12; inp.autocomplete = 'off';
+    md.appendChild(inp);
+    var err = el('div', 'display:none;color:#DC2626;font-size:13px;text-align:center;');
+    md.appendChild(err);
+    var go = el('button', 'padding:13px;font-size:15px;font-weight:600;background:linear-gradient(135deg,#0EA5E9,#0369A1);color:white;border:none;border-radius:10px;cursor:pointer;', 'เข้าสู่หน้าจอ →');
+    md.appendChild(go);
+    var cb = el('button', 'padding:11px;font-size:13px;background:#F3F4F6;color:#374151;border:none;border-radius:10px;cursor:pointer;', T.C);
+    cb.onclick = function() { ov.remove(); };
+    md.appendChild(cb);
+    function submit() {
+      if ((inp.value || '').trim() !== '3334') {
+        err.style.display = 'block';
+        err.textContent = '❌ รหัสไม่ถูกต้อง';
+        inp.value = ''; inp.focus();
+        return;
+      }
+      ov.remove();
+      openDisplayNow();
+    }
+    go.onclick = submit;
+    inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') submit(); });
+    ov.appendChild(md);
+    ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
+    document.body.appendChild(ov);
+    setTimeout(function() { inp.focus(); }, 60);
   }
 
   function openCal() {
@@ -4538,6 +4590,15 @@ footer { font-size: 14px !important; opacity: 0.85 !important; }
       pl.textContent = 'Policy';
       pl.onclick = openPdpa;
       ft.appendChild(pl);
+    }
+    // \u0e25\u0e34\u0e07\u0e01\u0e4c\u0e25\u0e31\u0e1a \u2192 \u0e2b\u0e19\u0e49\u0e32 Display (\u0e0b\u0e48\u0e2d\u0e19\u0e17\u0e35\u0e48\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21 "CMMBA 33 Kasetsart University")
+    if (ft && !ft.getAttribute('data-dg')) {
+      ft.setAttribute('data-dg', '1');
+      ft.addEventListener('click', function(e) {
+        // \u0e04\u0e25\u0e34\u0e01\u0e17\u0e35\u0e48 Policy \u2192 \u0e40\u0e1b\u0e34\u0e14 PDPA \u0e15\u0e32\u0e21\u0e40\u0e14\u0e34\u0e21 \u0e44\u0e21\u0e48\u0e43\u0e0a\u0e48\u0e25\u0e34\u0e07\u0e01\u0e4c\u0e25\u0e31\u0e1a
+        if (e.target && e.target.classList && e.target.classList.contains('pd-link')) return;
+        openDisplayGate();
+      });
     }
     document.querySelectorAll('.hero-meta-row span').forEach(function(s) {
       if (s.textContent.indexOf('Oakwood') >= 0 && !s.getAttribute('data-link')) {
