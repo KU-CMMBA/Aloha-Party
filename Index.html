@@ -3992,14 +3992,20 @@ window.addEventListener('DOMContentLoaded', () => {
 /* footer ตัวใหญ่ขึ้น */
 footer { font-size: 14px !important; opacity: 0.85 !important; }
 
-/* ขยาย welcome card ให้กว้างขึ้น */
+/* ขยาย welcome card ให้กว้างขึ้น + บีบให้พอดี 1 หน้าจอ (ไม่ให้เนื้อหาโดนตัด) */
 @media (min-width: 901px) and (orientation: landscape) {
-  body.landing-mode { overflow: hidden !important; height: 100vh !important; }
-  body.landing-mode .container { padding-top: 16px !important; padding-bottom: 16px !important; }
-  body.landing-mode .hero-meta-row { margin-bottom: 28px !important; }
-  body.landing-mode .form-column { max-width: min(1500px, 96vw) !important; margin-top: 8px !important; }
-  body.landing-mode .welcome-split { grid-template-columns: 2.5fr 1fr !important; }
+  body.landing-mode { overflow-y: auto !important; height: 100vh !important; }
+  body.landing-mode .container { padding-top: 12px !important; padding-bottom: 16px !important; }
+  body.landing-mode .hero { margin-bottom: 4px !important; }
+  body.landing-mode .hero-logo { width: clamp(150px, 15vw, 200px) !important; }
+  body.landing-mode .hero-meta-row { margin-bottom: 10px !important; }
+  body.landing-mode .form-column { max-width: min(1500px, 96vw) !important; margin-top: 4px !important; }
+  body.landing-mode .welcome-split { grid-template-columns: 2.5fr 1fr !important; align-items: center !important; }
   body.landing-mode .welcome-p { white-space: nowrap; font-size: 15px !important; }
+  body.landing-mode .welcome-card { padding: 16px 22px !important; }
+  body.landing-mode .welcome-h { font-size: 23px !important; margin-bottom: 4px !important; }
+  body.landing-mode .welcome-card .notice { padding: 9px 13px !important; font-size: 13px !important; line-height: 1.5 !important; margin: 6px 0 0 !important; }
+  body.landing-mode .welcome-split-right { gap: 18px !important; }
 }
 
 /* ปุ่ม donate ขนาดเท่ากับ register */
