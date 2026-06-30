@@ -462,7 +462,7 @@ const state = { personal:[], batch:[], totalAmount:0, totalCount:0, prevPersonal
 
 function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function formatTime(d){const p=n=>String(n).padStart(2,'0');return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds())}
-function honorific(s){if(!s)return'';const f=(s.name||'').trim().split(/\s+/)[0]||'';return f?'คุณ'+f:(s.name||'')}
+function honorific(s){if(!s)return'';const nm=(s.name||'').trim();if(nm==='ไม่ระบุชื่อ')return nm;const f=nm.split(/\s+/)[0]||'';return f?'คุณ'+f:nm}
 function batchLabel(s){
   if(!s)return'';
   if(s.batch)return /^\d+$/.test(String(s.batch))?'รุ่น '+s.batch:s.batch;

@@ -234,27 +234,32 @@ function getTopSpenders() {
     const idxInName  = DON_HEADERS.indexOf('บริจาคในนาม');
     const idxAmount  = DON_HEADERS.indexOf('ยอดบริจาค (บาท)');
     const idxOcr     = DON_HEADERS.indexOf('ยอดโอน OCR');
+    const idxDonId   = DON_HEADERS.indexOf('Donation ID');
     if (idxName < 0 || idxInName < 0 || idxAmount < 0) return [];
 
     const map = {};
-    data.forEach(function(row) {
+    data.forEach(function(row, i) {
       const inName = String(row[idxInName] || '');
       if (inName.indexOf('ส่วนตัว') !== 0) return;
       const amount = parseFloat(row[idxAmount]) || 0;
       const finalAmount = parseFloat(row[idxOcr]) || amount;
       if (finalAmount <= 0) return;
-      const key = String(row[idxName] || '').trim();
-      if (!key) return;
+      // ชื่อที่จะโชว์: ชื่อ-นามสกุล > ชื่อเล่น > "ไม่ระบุชื่อ" (เดิมถ้าไม่มีชื่อ-นามสกุลจะถูกตัดทิ้ง)
+      const fullName = String(row[idxName] || '').trim();
+      const nick = String(row[idxNick] || '').trim();
+      const displayName = fullName || nick || 'ไม่ระบุชื่อ';
+      // key รวมยอด: ใช้ชื่อจริง > ชื่อเล่น > Donation ID (กันรวมคนละคนที่ไม่มีชื่อ)
+      const key = fullName || nick || ('anon-' + (idxDonId >= 0 ? row[idxDonId] : i));
       if (!map[key]) {
         map[key] = {
-          name: key,
-          nickname: String(row[idxNick] || ''),
+          name: displayName,
+          nickname: nick,
           group: String(row[idxGroup] || ''),
           batch: String(row[idxBatch] || ''),
           total: 0,
         };
       }
-      map[key].total += amount;
+      map[key].total += finalAmount;
     });
 
     const arr = [];
