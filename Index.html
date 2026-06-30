@@ -1290,6 +1290,11 @@ function goToHome() {
   navigate(state.regClosed ? 'closed' : 'welcome', false);
 }
 
+// ปุ่มย้อนกลับสู่หน้าแรก — ปิดรับแล้วไปหน้า closed, ไม่งั้นไป welcome
+function backToLanding() {
+  navigate(state.regClosed ? 'closed' : 'welcome', false);
+}
+
 // =============== DONATION ===============
 function submitDonateLogin() {
   const email = document.getElementById('don_email').value.trim();
@@ -1757,7 +1762,7 @@ const steps = {
         </div>
         <div id="loginError" style="display:none; margin: 16px 0; padding: 12px 14px; background: rgba(220,38,38,0.08); border-radius: 12px; color: #b91c1c; font-size: 14px;"></div>
         <div class="btn-group">
-          <button class="btn btn-secondary" onclick="navigate('welcome', false)">← ย้อนกลับ</button>
+          <button class="btn btn-secondary" onclick="backToLanding()">← ย้อนกลับ</button>
           <button class="btn btn-primary" id="loginBtn" onclick="submitEditLogin()">เข้าสู่ระบบแก้ไข 🔓</button>
         </div>
       </div>
@@ -1780,7 +1785,7 @@ const steps = {
           </button>
         </div>
         <div class="button-row" style="margin-top:24px;">
-          <button class="btn btn-secondary" onclick="navigate('welcome', false)">← ย้อนกลับ</button>
+          <button class="btn btn-secondary" onclick="backToLanding()">← ย้อนกลับ</button>
         </div>
         <div style="text-align:center; margin-top:14px;">
           <button class="btn-link-edit" onclick="goToHome()">🏠 กลับสู่หน้าหลัก</button>
