@@ -12,7 +12,7 @@ const CONFIG = {
   SHEET_ID:   '1grJlq5HKqH8C6lo806igLHy5hpod4U4PXzGHQMkswUg',
   FOLDER_ID:  '1_Y5b1hdfNahaetMZCvdsbE-bcxSmDUcu',  // assets: bg, logos, QR
   SLIP_FOLDER_ID: '1MoY2U_UtU_4HpZz7HRVirytJtHgv4_IK',  // สลิปการโอนเงิน
-  DEADLINE:   '2026-06-30T11:35:59+07:00',
+  DEADLINE:   '2026-07-01T00:00:00+07:00',  // ปิดรับเที่ยงคืน — เปิดถึงสิ้นวัน 30 มิ.ย. 2569
   EVENT_NAME: 'CMMBA 34 Aloha Party',
   TZ:         'Asia/Bangkok',
   QR_CACHE_TTL: 21600,
