@@ -1208,6 +1208,7 @@ const state = {
   editingRegId: '',
   donationOpen: true,
   regClosed: false,
+  regBypassCode: '',
 };
 
 function emptyData() {
@@ -3699,6 +3700,7 @@ function submitForm() {
   state.data.notes = readField('notes');
   state.data.supportPersonal = readField('supportPersonal');
   state.data.supportBatch = readField('supportBatch');
+  state.data.regBypassCode = state.regBypassCode || '';  // รหัสลับเปิดลงทะเบียน (ถ้ามาจากลิงก์พิเศษ)
 
   // ตรวจ consent ภาพ — บังคับ
   if (!state.data.consentPhoto) {
@@ -3909,15 +3911,34 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Helper: อ่าน query param ของ URL จริง (เช่น ?key=...) — สำหรับลิงก์ลับเปิดลงทะเบียน
+  function getUrlParams() {
+    return new Promise(resolve => {
+      try {
+        if (google.script && google.script.url && google.script.url.getLocation) {
+          let done = false;
+          google.script.url.getLocation(loc => { if (!done) { done = true; resolve((loc && loc.parameter) || {}); } });
+          setTimeout(() => { if (!done) { done = true; resolve({}); } }, 3000);
+        } else { resolve({}); }
+      } catch (e) { resolve({}); }
+    });
+  }
+
   // ===== Phase 1: load all backend data =====
   Promise.all([
     callBackend('getConfig'),
     callBackend('getAssets'),
     callBackend('getQRImage'),
-  ]).then(([cfg, assets, qrImage]) => {
+    getUrlParams(),
+  ]).then(([cfg, assets, qrImage, params]) => {
     state.qrImage = qrImage || '';
 
-    const isClosed = cfg && !cfg.isOpen;
+    // ลิงก์ลับเปิดลงทะเบียน: ?key=... → บังคับเปิดฟอร์ม (backend ตรวจรหัสอีกครั้งตอน submit)
+    const openKey = String((params && (params.key || params.open)) || '').trim();
+    state.regBypassCode = openKey;
+    const forceOpen = !!openKey;
+
+    const isClosed = (cfg && !cfg.isOpen) && !forceOpen;
     state.regClosed = !!isClosed;
     state.donationOpen = cfg ? (cfg.donationOpen !== false) : true;
     assets = assets || {};
