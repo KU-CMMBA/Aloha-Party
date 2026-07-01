@@ -496,9 +496,7 @@ function getLogoAlohaBase64() {
 
 function submitRegistration(payload) {
   try {
-    // ลิงก์ลับเปิดลงทะเบียนหลังปิดรับ (สำหรับรุ่นน้องตกหล่น) — มาจากลิงก์ ...exec?open=1 → ข้ามเช็คหมดเขต
-    const regBypass = !!String((payload && payload.regBypassCode) || '').trim();
-    if (!regBypass && new Date() > new Date(CONFIG.DEADLINE)) {
+    if (new Date() > new Date(CONFIG.DEADLINE)) {
       return { ok: false, message: 'ปิดรับลงทะเบียนแล้ว (หมดเขต 30 มิ.ย. 2569)' };
     }
 
