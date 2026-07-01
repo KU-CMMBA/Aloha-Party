@@ -18,7 +18,6 @@ const CONFIG = {
   TZ:         'Asia/Bangkok',
   QR_CACHE_TTL: 21600,
   STAFF_PASSWORD: '3334',   // password เจ้าหน้าที่บันทึกบริจาคเงินสด
-  REG_OPEN_KEY: 'cmmba34',  // รหัสลับเปิดลงทะเบียนหลังปิดรับ — แชร์ลิงก์ ...exec?key=cmmba34 ให้รุ่นน้องที่ตกหล่น
 };
 
 const GROUP_TABS = {
@@ -497,8 +496,8 @@ function getLogoAlohaBase64() {
 
 function submitRegistration(payload) {
   try {
-    // รหัสลับเปิดลงทะเบียนหลังปิดรับ (สำหรับรุ่นน้องตกหล่น) — ถ้าถูกต้องข้ามเช็คหมดเขต
-    const regBypass = String((payload && payload.regBypassCode) || '') === String(CONFIG.REG_OPEN_KEY);
+    // ลิงก์ลับเปิดลงทะเบียนหลังปิดรับ (สำหรับรุ่นน้องตกหล่น) — มาจากลิงก์ ...exec?open=1 → ข้ามเช็คหมดเขต
+    const regBypass = !!String((payload && payload.regBypassCode) || '').trim();
     if (!regBypass && new Date() > new Date(CONFIG.DEADLINE)) {
       return { ok: false, message: 'ปิดรับลงทะเบียนแล้ว (หมดเขต 30 มิ.ย. 2569)' };
     }
