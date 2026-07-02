@@ -1526,9 +1526,19 @@ function calculateCost(p) {
   if (group === 'alumni') {
     if (roomType === 'single') {
       if (p.companion) {
+        // ผู้ใหญ่ +1,000/คน · เด็ก ≤12: นอนกับผู้ปกครองฟรี 1 คน, เตียงเสริม +1,000/คน
         const adults = parseInt(p.companion.adultCount, 10) || 0;
         const children = parseInt(p.companion.childCount, 10) || 0;
-        cost += adults * 1000 + children * 500;
+        cost += adults * 1000;
+        const list = Array.isArray(p.companion.list) ? p.companion.list : null;
+        if (list && list.length > 0) {
+          list.forEach(function(q) {
+            if (q && q.type === 'เด็ก' && q.extraBed) cost += 1000;
+          });
+        } else {
+          // ไม่มีรายละเอียดรายคน → เด็กคนแรกฟรี ที่เหลือคิดเตียงเสริม
+          cost += Math.max(0, children - 1) * 1000;
+        }
       } else {
         cost += 1000;
       }

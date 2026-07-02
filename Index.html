@@ -1610,13 +1610,15 @@ function calcCost() {
     return supportTotal;
   }
 
-  // ศิษย์เก่า:
+  // ศิษย์เก่า: ผู้ใหญ่ +1,000 · เด็กนอนกับผู้ปกครองฟรี 1 คน · เด็กเตียงเสริม +1,000
   if (group === 'alumni') {
     if (roomType === 'single') {
       if (state.data.hasCompanion && state.data.companion) {
         const adults = parseInt(state.data.companion.adultCount, 10) || 0;
-        const children = parseInt(state.data.companion.childCount, 10) || 0;
-        cost += adults * 1000 + children * 500;
+        cost += adults * 1000;
+        (state.data.companion.list || []).forEach(function(p) {
+          if (p.type === 'เด็ก' && p.extraBed) cost += 1000;
+        });
       } else {
         cost += 1000;
       }
@@ -1719,7 +1721,7 @@ const steps = {
               • <strong>พี่ 33 / น้อง 34 / อาจารย์</strong> — ฟรี<br>
               • <strong>ศิษย์เก่า พักคู่</strong> — ฟรี (จับคู่ศิษย์เก่าด้วยกัน)<br>
               • <strong>ศิษย์เก่า พักคนเดียว</strong> +1,000 บาท<br>
-              • <strong>ศิษย์เก่า มีผู้ติดตาม</strong> ผู้ใหญ่ +1,000 / เด็ก ≤12 ปี +500
+              • <strong>ศิษย์เก่า มีผู้ติดตาม</strong> ผู้ใหญ่ +1,000 / เด็ก ≤12 ปี นอนกับผู้ปกครองฟรี 1 คน / เตียงเสริม +1,000
             </div>
           </div>
         </div>
@@ -2335,7 +2337,7 @@ const steps = {
         <p class="step-desc">
           ${isFaculty
             ? 'ผู้ติดตามอาจารย์เข้าร่วมฟรี'
-            : 'ผู้ใหญ่ +1,000 บาท · เด็กอายุไม่เกิน 12 ปี +500 บาท'}
+            : 'ผู้ใหญ่ +1,000 บาท · เด็ก ≤12 ปี นอนกับผู้ปกครองฟรี 1 คน · เตียงเสริม +1,000 บาท'}
         </p>
 
         <div class="notice" style="margin-bottom: 18px;">
@@ -3013,7 +3015,8 @@ function renderCompanionList() {
     idx++;
   }
   for (let i = 0; i < children; i++) {
-    html += companionPersonHtml(idx, 'เด็ก', existing[idx] || {}, true);
+    // เด็กคนที่ 2 ขึ้นไป → บังคับเตียงเสริม (นอนกับผู้ปกครองได้ 1 คน/ห้อง)
+    html += companionPersonHtml(idx, 'เด็ก', existing[idx] || {}, true, i);
     idx++;
   }
   listEl.innerHTML = html;
@@ -3035,7 +3038,7 @@ function renderCompanionList() {
   });
 }
 
-function companionPersonHtml(idx, typeLabel, data, isChild) {
+function companionPersonHtml(idx, typeLabel, data, isChild, childOrdinal) {
   data = data || {};
   const dietList = data.dietRestrictions || [];
   const allergyList = data.allergies || [];
@@ -3051,7 +3054,20 @@ function companionPersonHtml(idx, typeLabel, data, isChild) {
   const ageVal = escapeHtml(data.age || '');
 
   let middle;
-  if (isChild) {
+  if (isChild && childOrdinal >= 1) {
+    // เด็กคนที่ 2+ — บังคับเตียงเสริม (1 ห้องให้เด็กนอนกับผู้ปกครองได้ 1 คน)
+    const bedId = 'cp_' + idx + '_bed';
+    middle = '<div class="field-row">' +
+      '<div class="field"><label>ความสัมพันธ์ <span class="req">*</span></label>' +
+      '<input type="text" id="' + relId + '" value="' + relVal + '" placeholder="เช่น ลูก, หลาน"></div>' +
+      '<div class="field"><label>อายุ (ปี) <span class="req">*</span></label>' +
+      '<input type="number" id="' + ageId + '" value="' + ageVal + '" min="0" max="12"></div>' +
+    '</div>' +
+    '<div class="field"><label>การจัดที่นอน</label>' +
+      '<div class="notice" style="margin: 0;">🛏️ เด็กคนที่ ' + (childOrdinal + 1) + ' ต้องใช้<strong>เตียงเสริม (+1,000 บาท)</strong><br><small>เด็กนอนกับผู้ปกครองได้ 1 คนต่อห้อง</small></div>' +
+      '<input type="radio" name="' + bedId + '" value="yes" checked style="display:none;">' +
+    '</div>';
+  } else if (isChild) {
     const bedId = 'cp_' + idx + '_bed';
     const extraBed = data.extraBed === true;
     middle = '<div class="field-row">' +
@@ -3146,6 +3162,12 @@ function saveCompanionAndContinue() {
       medicalConditions: readPillGroup('cp_' + i + '_medical'),
       medicalOther: readField('cp_' + i + '_medical_other'),
     });
+  }
+
+  // 1 ห้องให้เด็กนอนกับผู้ปกครองได้ 1 คน — คนถัดไปต้องเตียงเสริม
+  const shareBedCount = list.filter(function(p) { return p.type === 'เด็ก' && p.extraBed === false; }).length;
+  if (shareBedCount > 1) {
+    return alert('เด็กนอนกับผู้ปกครองได้เพียง 1 คนต่อห้อง — เด็กคนถัดไปต้องใช้เตียงเสริม (+1,000 บาท)');
   }
 
   state.data.companion = { adultCount: adults, childCount: children, list: list };
@@ -4123,7 +4145,7 @@ footer { font-size: 14px !important; opacity: 0.85 !important; }
     WB: '\u0e01\u0e32\u0e23\u0e2a\u0e33\u0e23\u0e2d\u0e07\u0e2b\u0e49\u0e2d\u0e07\u0e1e\u0e31\u0e01\u0e02\u0e36\u0e49\u0e19\u0e2d\u0e22\u0e39\u0e48\u0e01\u0e31\u0e1a\u0e08\u0e33\u0e19\u0e27\u0e19\u0e2b\u0e49\u0e2d\u0e07\u0e17\u0e35\u0e48\u0e08\u0e31\u0e14\u0e40\u0e15\u0e23\u0e35\u0e22\u0e21\u0e44\u0e14\u0e49',
     W2: '\u0e23\u0e38\u0e48\u0e19\u0e1e\u0e35\u0e48 \u00b7 \u0e23\u0e38\u0e48\u0e19\u0e19\u0e49\u0e2d\u0e07 \u00b7 \u0e28\u0e34\u0e29\u0e22\u0e4c\u0e40\u0e01\u0e48\u0e32 \u00b7 \u0e2d\u0e32\u0e08\u0e32\u0e23\u0e22\u0e4c\u0e41\u0e25\u0e30\u0e1a\u0e38\u0e04\u0e25\u0e32\u0e01\u0e23 \u2014 \u0e1f\u0e23\u0e35\u0e04\u0e48\u0e32\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22',
     W3: '*\u0e01\u0e23\u0e13\u0e35\u0e1e\u0e31\u0e01\u0e04\u0e19\u0e40\u0e14\u0e35\u0e22\u0e27 (\u0e2b\u0e49\u0e2d\u0e07\u0e40\u0e14\u0e35\u0e48\u0e22\u0e27) \u0e40\u0e1e\u0e34\u0e48\u0e21 1,000 \u0e1a\u0e32\u0e17',
-    W4: '*(\u0e40\u0e09\u0e1e\u0e32\u0e30 \u0e23\u0e38\u0e48\u0e191-32) \u0e01\u0e23\u0e13\u0e35\u0e21\u0e35\u0e1c\u0e39\u0e49\u0e15\u0e34\u0e14\u0e15\u0e32\u0e21\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e17\u0e48\u0e32\u0e19\u0e25\u0e30 1,000 \u0e1a\u0e32\u0e17 \u00b7 \u0e40\u0e14\u0e47\u0e01\u0e2d\u0e32\u0e22\u0e38\u0e44\u0e21\u0e48\u0e40\u0e01\u0e34\u0e19 12 \u0e1b\u0e35 \u0e1f\u0e23\u0e35',
+    W4: '*(\u0e40\u0e09\u0e1e\u0e32\u0e30 \u0e23\u0e38\u0e48\u0e191-32) \u0e01\u0e23\u0e13\u0e35\u0e21\u0e35\u0e1c\u0e39\u0e49\u0e15\u0e34\u0e14\u0e15\u0e32\u0e21\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e17\u0e48\u0e32\u0e19\u0e25\u0e30 1,000 \u0e1a\u0e32\u0e17 \u00b7 \u0e40\u0e14\u0e47\u0e01 \u226412 \u0e1b\u0e35 \u0e19\u0e2d\u0e19\u0e01\u0e31\u0e1a\u0e1c\u0e39\u0e49\u0e1b\u0e01\u0e04\u0e23\u0e2d\u0e07\u0e1f\u0e23\u0e35 1 \u0e04\u0e19 \u00b7 \u0e40\u0e15\u0e35\u0e22\u0e07\u0e40\u0e2a\u0e23\u0e34\u0e21 +1,000 \u0e1a\u0e32\u0e17',
     CAL: '\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e25\u0e07\u0e1b\u0e0f\u0e34\u0e17\u0e34\u0e19'
   };
 
